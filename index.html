@@ -18,6 +18,26 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
+
+  /* Compat vars — referenced by original V2 JS inline styles */
+  --bg-primary:   #000000;
+  --bg-secondary: #0B0B0B;
+  --bg-card:      #FFFFFF;
+  --bg-elevated:  #F7F7F5;
+  --bg-card-hover:#EFEFED;
+  --border-subtle:#E5E2DC;
+  --text-primary: #0A0A0A;
+  --text-secondary:#3A3A3A;
+  --text-muted:   #6F6F6F;
+  --gold:         #9F845B;
+  --gold-light:   #C3A579;
+  --gold-dim:     #6B5A42;
+  --status-at-risk:    #8A2F2B;
+  --status-foundation: #A85F24;
+  --status-momentum:   #B8942A;
+  --status-results:    #1A5C38;
+  --status-standard:   #9F845B;
+  --blue:         #1F4E72;
   --black:       #000000;
   --off-black:   #1a1a1a;
   --dark-gray:   #4a4a4a;
@@ -278,19 +298,25 @@ select.drill-select { background: var(--white); border: var(--border); color: va
 }
 .progress-bar-track { height: 3px; background: var(--rule); border-radius: 2px; }
 .progress-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
-.fill-black  { background: var(--off-black); }
-.fill-green  { background: var(--green); }
-.fill-blue   { background: var(--blue); }
-.fill-amber  { background: var(--amber); }
-.fill-coral  { background: var(--coral); }
-.fill-gray   { background: var(--mid-gray); }
-.fill-slate  { background: var(--slate); }
-/* Legacy color classes from original V2 */
-.fill-standard  { background: var(--green); }
-.fill-results   { background: var(--blue); }
-.fill-momentum  { background: var(--amber); }
-.fill-foundation{ background: var(--slate); }
-.fill-risk      { background: var(--coral); }
+/* EQX Muted Palette — fill classes */
+.fill-black  { background: #1A1A1A; }
+.fill-green  { background: #1A5C38; }
+.fill-blue   { background: #1F4E72; }
+.fill-amber  { background: #B8942A; }
+.fill-coral  { background: #8A2F2B; }
+.fill-gray   { background: #6F6F6F; }
+.fill-gold   { background: #9F845B; }
+.fill-red    { background: #8A2F2B; }
+.fill-orange { background: #A85F24; }
+.fill-yellow { background: #B8942A; }
+.fill-slate  { background: #4A5568; }
+.fill-standard   { background: #9F845B; }
+.fill-results    { background: #1A5C38; }
+.fill-momentum   { background: #B8942A; }
+.fill-foundation { background: #A85F24; }
+.fill-risk       { background: #8A2F2B; }
+/* KPI trend positive */
+.kpi-trend.up { color: #1A5C38; }
 .fill-gold      { background: var(--off-black); }
 .fill-red       { background: var(--coral); }
 .fill-orange    { background: var(--amber); }
@@ -711,8 +737,8 @@ select.drill-select { background: var(--white); border: var(--border); color: va
         <div class="payout-label">Pilot Estimated Payout</div>
         <div class="payout-amount" id="outcomes-payout-total">--</div>
         <div id="outcomes-payout-breakdown" class="payout-breakdown"></div>
-        <div style="margin-top:16px;border-top:1px solid rgba(201,168,76,0.2);padding-top:12px">
-          <div style="font-size:10px;color:var(--gold-dim);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Pay Level Distribution</div>
+        <div style="margin-top:16px;border-top:1px solid rgba(159,132,91,0.2);padding-top:12px">
+          <div style="font-size:10px;color:#4A4A4A;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Pay Level Distribution</div>
           <div id="outcomes-level-dist"></div>
         </div>
       </div>
@@ -742,11 +768,11 @@ const RAW_DATA = {"coaches": {"79344": {"emp_id": "79344", "name": "Justin Ware"
 // CONSTANTS
 // ============================================================
 const STATUS_COLORS = {
-  'At Risk': '#ef4444',
-  'Building Foundation': '#f97316',
-  'Building Momentum': '#eab308',
-  'Delivering Results': '#22c55e',
-  'Setting The Standard': '#c9a84c'
+  'At Risk': '#8A2F2B',
+  'Building Foundation': '#A85F24',
+  'Building Momentum': '#B8942A',
+  'Delivering Results': '#1A5C38',
+  'Setting The Standard': '#9F845B'
 };
 const STATUS_ORDER = ['At Risk','Building Foundation','Building Momentum','Delivering Results','Setting The Standard'];
 const LADDER_LEVELS = [
@@ -923,7 +949,7 @@ function renderProgress(label, val, max, colorClass='fill-gold') {
 function renderDistBar(counts, labels) {
   const total = Object.values(counts).reduce((a,b)=>a+b,0);
   if (!total) return '<div class="no-data">No data for this selection</div>';
-  const statusColorMap = {'At Risk':'#ef4444','Building Foundation':'#f97316','Building Momentum':'#eab308','Delivering Results':'#22c55e','Setting The Standard':'#c9a84c'};
+  const statusColorMap = {'At Risk':'#8A2F2B','Building Foundation':'#A85F24','Building Momentum':'#B8942A','Delivering Results':'#1A5C38','Setting The Standard':'#9F845B'};
   let html = '<div class="dist-bar">';
   STATUS_ORDER.forEach(s => {
     const n = counts[s] || 0;
@@ -935,9 +961,9 @@ function renderDistBar(counts, labels) {
   STATUS_ORDER.forEach(s => {
     const n = counts[s] || 0;
     if (!n) return;
-    html += `<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-muted)">
+    html += `<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#6F6F6F">
       <div style="width:8px;height:8px;border-radius:50%;background:${statusColorMap[s]}"></div>
-      <span>${s}: <strong style="color:var(--text-secondary)">${n}</strong></span>
+      <span>${s}: <strong style="color:#3A3A3A">${n}</strong></span>
     </div>`;
   });
   html += '</div>';
@@ -1032,14 +1058,14 @@ function renderOverview() {
 
   document.getElementById('overview-kpis').innerHTML = [
     renderKPICard('Active Coaches', coachData.length, `in ${label}`, '', 'var(--text-primary)'),
-    renderKPICard('Total Sessions', totalSessions.toFixed(0), 'pay period completed', '', 'var(--gold-light)'),
-    renderKPICard('Total Revenue', fmtCurrency(totalRevenue), 'pay period', '', '#22c55e'),
+    renderKPICard('Total Sessions', totalSessions.toFixed(0), 'pay period completed', '', '#1A1A1A'),
+    renderKPICard('Total Revenue', fmtCurrency(totalRevenue), 'pay period', '', '#1A5C38'),
     renderKPICard('Avg Readiness', avgReadiness.toFixed(0), `${renderBadge(getStatusBand(avgReadiness))}`, '', getStatusColor(avgReadiness)),
   ].join('');
 
   // Distribution
   document.getElementById('overview-dist-bar').innerHTML = renderDistBar(statusCounts, STATUS_ORDER);
-  document.getElementById('overview-dist-legend').innerHTML = `<div style="margin-top:12px;font-size:11px;color:var(--text-muted)">
+  document.getElementById('overview-dist-legend').innerHTML = `<div style="margin-top:12px;font-size:11px;color:#6F6F6F">
     ${delivering} coaches delivering results or setting the standard &bull; ${atRisk} at risk of falling below baseline
   </div>`;
 
@@ -1050,7 +1076,7 @@ function renderOverview() {
   const avgProf = withProf.length ? withProf.reduce((s,c)=>s+(c.scores.partialProf||0),0)/withProf.length : null;
   
   document.getElementById('overview-pillar-scores').innerHTML = `
-    ${avgProf !== null ? renderProgress('Professionalism (Partial)', avgProf, 100, avgProf >= 70 ? 'fill-green' : avgProf >= 50 ? 'fill-gold' : 'fill-red') : '<div class="progress-bar-wrap"><div class="progress-bar-header"><span class="progress-bar-label">Professionalism</span><span class="progress-bar-val" style="color:var(--text-muted)">No learning data</span></div></div>'}
+    ${avgProf !== null ? renderProgress('Professionalism (Partial)', avgProf, 100, avgProf >= 70 ? 'fill-green' : avgProf >= 50 ? 'fill-gold' : 'fill-red') : '<div class="progress-bar-wrap"><div class="progress-bar-header"><span class="progress-bar-label">Professionalism</span><span class="progress-bar-val" style="color:#6F6F6F">No learning data</span></div></div>'}
     ${renderProgress('Programming (Partial)', avgProg, 100, avgProg >= 70 ? 'fill-green' : avgProg >= 50 ? 'fill-gold' : 'fill-red')}
     ${renderProgress('Performance (Partial)', avgPerf, 100, avgPerf >= 70 ? 'fill-green' : avgPerf >= 50 ? 'fill-gold' : 'fill-red')}
     ${renderProgress('Avg Readiness Score', avgReadiness, 100, avgReadiness >= 70 ? 'fill-green' : avgReadiness >= 50 ? 'fill-gold' : 'fill-red')}
@@ -1112,7 +1138,7 @@ function renderOverview() {
       datasets: [{
         label: 'Coaches',
         data: levelCounts,
-        backgroundColor: ['#ef4444','#f97316','#eab308','#22c55e','#c9a84c','#d4af37'],
+        backgroundColor: ['#8A2F2B','#A85F24','#B8942A','#1A5C38','#9F845B','#9F845B'],
         borderRadius: 3
       }]
     },
@@ -1155,11 +1181,11 @@ function renderOverview() {
 }
 
 function getStatusColor(score) {
-  if (score >= 90) return '#c9a84c';
-  if (score >= 80) return '#22c55e';
-  if (score >= 65) return '#eab308';
-  if (score >= 50) return '#f97316';
-  return '#ef4444';
+  if (score >= 90) return '#9F845B';
+  if (score >= 80) return '#1A5C38';
+  if (score >= 65) return '#B8942A';
+  if (score >= 50) return '#A85F24';
+  return '#8A2F2B';
 }
 
 // ============================================================
@@ -1180,10 +1206,10 @@ function renderLearning() {
   const noData = coachData.filter(c=>!c.learning).length;
 
   document.getElementById('learning-kpis').innerHTML = [
-    renderKPICard('Enrolled', enrolled, `of ${coachData.length} pilot coaches`, noData > 0 ? `<span style="color:#f97316">${noData} not yet enrolled</span>` : '&#10003; All enrolled', 'var(--gold-light)'),
-    renderKPICard('Curriculum Completed', completed, 'coaches finished 12-week program', completed > 0 ? `<span style="color:#22c55e">&#8593; ${Math.round(completed/Math.max(withLearning.length,1)*100)}% completion rate</span>` : '', '#22c55e'),
+    renderKPICard('Enrolled', enrolled, `of ${coachData.length} pilot coaches`, noData > 0 ? `<span style="color:#A85F24">${noData} not yet enrolled</span>` : '&#10003; All enrolled', '#1A1A1A'),
+    renderKPICard('Curriculum Completed', completed, 'coaches finished 12-week program', completed > 0 ? `<span style="color:#1A5C38">&#8593; ${Math.round(completed/Math.max(withLearning.length,1)*100)}% completion rate</span>` : '', '#1A5C38'),
     renderKPICard('Avg Progress', fmtPct(avgProgress), 'through 12-week curriculum', '', 'var(--text-primary)'),
-    renderKPICard('Avg Assessment', fmtPct(avgScore), 'score across enrolled coaches', avgScore >= 0.85 ? '<span style="color:#22c55e">&#8593; Meets 85% standard</span>' : '<span style="color:#f97316">Below 85% target</span>', getStatusColor(avgScore*100)),
+    renderKPICard('Avg Assessment', fmtPct(avgScore), 'score across enrolled coaches', avgScore >= 0.85 ? '<span style="color:#1A5C38">&#8593; Meets 85% standard</span>' : '<span style="color:#A85F24">Below 85% target</span>', getStatusColor(avgScore*100)),
   ].join('');
 
   // Progress chart
@@ -1204,7 +1230,7 @@ function renderLearning() {
       labels: Object.keys(progressBuckets),
       datasets: [{
         data: Object.values(progressBuckets),
-        backgroundColor: ['#ef4444','#f97316','#eab308','#22c55e','#c9a84c'],
+        backgroundColor: ['#8A2F2B','#A85F24','#B8942A','#1A5C38','#9F845B'],
         borderWidth: 0
       }]
     },
@@ -1226,7 +1252,7 @@ function renderLearning() {
   Object.entries(statusDist).forEach(([s,n]) => {
     if (!n) return;
     const pct = Math.round(n/coachData.length*100);
-    const colors = {'On time':'#c9a84c','Successful':'#22c55e','Late':'#ef4444','No data':'#606060'};
+    const colors = {'On time':'#B8942A','Successful':'#1A5C38','Late':'#8A2F2B','No data':'#6F6F6F'};
     statusHTML += renderProgress(s + ` (${n})`, n, coachData.length, `fill-${s==='Successful'?'green':s==='On time'?'gold':s==='Late'?'red':'blue'}`);
   });
   document.getElementById('learning-status-dist').innerHTML = statusHTML;
@@ -1290,9 +1316,9 @@ function renderActions() {
   const avgEq = coachData.length ? (totalEquifits/coachData.length).toFixed(1) : 0;
 
   document.getElementById('actions-kpis').innerHTML = [
-    renderKPICard('Total Equifits', totalEquifits.toFixed(0), `avg ${avgEq} per coach`, zeroEq > 0 ? `<span style="color:#f97316">${zeroEq} coaches with zero</span>` : '', 'var(--gold-light)'),
+    renderKPICard('Total Equifits', totalEquifits.toFixed(0), `avg ${avgEq} per coach`, zeroEq > 0 ? `<span style="color:#A85F24">${zeroEq} coaches with zero</span>` : '', '#1A1A1A'),
     renderKPICard('Total CPTs', totalCPTs.toFixed(0), 'complimentary personal trainings', '', 'var(--text-primary)'),
-    renderKPICard('Completed Sessions', totalCompleted.toFixed(0), 'this pay period', '', '#22c55e'),
+    renderKPICard('Completed Sessions', totalCompleted.toFixed(0), 'this pay period', '', '#1A1A1A'),
     renderKPICard('Scheduled Sessions', totalScheduled.toFixed(0), 'upcoming scheduled', '', 'var(--text-secondary)'),
   ].join('');
 
@@ -1307,8 +1333,8 @@ function renderActions() {
     data:{
       labels: clubs.map(cc=>clubNames[cc]||cc),
       datasets:[
-        {label:'Equifits',data:clubEq,backgroundColor:'rgba(201,168,76,0.8)',borderRadius:3},
-        {label:'CPTs',data:clubCPT,backgroundColor:'rgba(59,130,246,0.8)',borderRadius:3}
+        {label:'Equifits',data:clubEq,backgroundColor:'rgba(26,92,56,0.75)',borderRadius:3},
+        {label:'CPTs',data:clubCPT,backgroundColor:'rgba(31,78,114,0.8)',borderRadius:3}
       ]
     },
     options:{responsive:true,maintainAspectRatio:false,
@@ -1333,8 +1359,8 @@ function renderActions() {
     data:{
       labels: trendPPs.map(pp=>pp.slice(0,6)),
       datasets:[
-        {label:'Equifits',data:trendEq,borderColor:'#c9a84c',backgroundColor:'rgba(201,168,76,0.1)',tension:0.4,pointRadius:4,fill:true},
-        {label:'CPTs',data:trendCPT,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.1)',tension:0.4,pointRadius:4,fill:true}
+        {label:'Equifits',data:trendEq,borderColor:'#1A5C38',backgroundColor:'rgba(26,92,56,0.08)',tension:0.4,pointRadius:3,fill:true},
+        {label:'CPTs',data:trendCPT,borderColor:'#1F4E72',backgroundColor:'rgba(31,78,114,0.1)',tension:0.4,pointRadius:3,fill:true}
       ]
     },
     options:{responsive:true,maintainAspectRatio:false,
@@ -1402,10 +1428,10 @@ function renderOutcomes() {
   const l4plus = coachData.filter(c=>c.scores?.ladder?.level>=4).length;
 
   document.getElementById('outcomes-kpis').innerHTML = [
-    renderKPICard('Total Revenue', fmtCurrency(totalRevenue), 'pay period', '', '#22c55e'),
-    renderKPICard('Completed Sessions', totalSessions.toFixed(0), 'this pay period', `<span style="color:var(--text-muted)">${(totalSessions/Math.max(coachData.length,1)).toFixed(1)} avg/coach</span>`, 'var(--gold-light)'),
+    renderKPICard('Total Revenue', fmtCurrency(totalRevenue), 'pay period', '', '#1A5C38'),
+    renderKPICard('Completed Sessions', totalSessions.toFixed(0), 'this pay period', `<span style="color:#6F6F6F">${(totalSessions/Math.max(coachData.length,1)).toFixed(1)} avg/coach</span>`, '#1A1A1A'),
     renderKPICard('Active Clients', totalClients.toFixed(0), 'across pilot coaches', '', 'var(--text-primary)'),
-    renderKPICard('Estimated Payout', fmtCurrency(totalPayout), 'coach compensation est.', `<span style="color:var(--text-muted)">${l4plus} coaches at Level 4+</span>`, 'var(--gold-light)'),
+    renderKPICard('Estimated Payout', fmtCurrency(totalPayout), 'coach compensation est.', `<span style="color:#6F6F6F">${l4plus} coaches at Level 4+</span>`, '#1A1A1A'),
   ].join('');
 
   // Revenue chart
@@ -1420,7 +1446,7 @@ function renderOutcomes() {
       labels: clubs.map(cc=>clubNames[cc]||cc),
       datasets:[
         {label:'Revenue ($)',data:clubRevs,backgroundColor:'rgba(34,197,94,0.7)',borderRadius:3,yAxisID:'y'},
-        {label:'Sessions',data:clubSess,backgroundColor:'rgba(201,168,76,0.5)',borderRadius:3,yAxisID:'y1'}
+        {label:'Sessions',data:clubSess,backgroundColor:'rgba(31,78,114,0.55)',borderRadius:3,yAxisID:'y1'}
       ]
     },
     options:{responsive:true,maintainAspectRatio:false,
@@ -1428,7 +1454,7 @@ function renderOutcomes() {
       scales:{
         x:{ticks:{color:'#606060',font:{size:9}},grid:{color:'rgba(255,255,255,0.03)'}},
         y:{ticks:{color:'#606060',font:{size:10},callback:v=>'$'+v.toLocaleString()},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:true},
-        y1:{position:'right',ticks:{color:'#c9a84c',font:{size:10}},grid:{display:false},beginAtZero:true}
+        y1:{position:'right',ticks:{color:'#1F4E72',font:{size:10}},grid:{display:false},beginAtZero:true}
       }}
   });
 
@@ -1452,7 +1478,7 @@ function renderOutcomes() {
   Object.entries(levelCounts).forEach(([l,n]) => {
     if (!n) return;
     levelHTML += renderProgress(`L${l} (${LADDER_LEVELS[l-1].range})`, n, coachData.length, 
-      l>=4?'fill-green':l>=3?'fill-gold':'fill-red');
+      l>=4?'fill-green':l>=3?'fill-amber':'fill-coral');
   });
   document.getElementById('outcomes-level-dist').innerHTML = levelHTML;
 
@@ -1547,17 +1573,17 @@ function renderCoachDetail() {
       <div class="pillar-label">Performance</div>
       <div class="pillar-partial-note">Partial Score</div>
     </div>
-    <div class="pillar-card" style="border:1px solid var(--gold-dim);background:rgba(201,168,76,0.05)">
+    <div class="pillar-card" style="border:1px solid #3A3A3A;background:#111111">
       <div class="pillar-score" style="color:${getStatusColor(scores?.readiness||0)}">${scores ? scores.readiness.toFixed(0) : '--'}</div>
       <div class="pillar-label">Readiness Score</div>
-      <div class="pillar-partial-note" style="color:var(--gold-dim)">Composite</div>
+      <div class="pillar-partial-note" style="color:rgba(255,255,255,0.35)">Composite</div>
     </div>
   </div>`;
 
   // Pay Ladder
   if (scores) {
     html += `<div class="card" style="margin-bottom:16px">
-      <div class="card-header"><span class="card-title">Pay Ladder Position</span><span class="card-badge" style="color:var(--gold);background:rgba(201,168,76,0.1)">${scores.ladder.label} &bull; ${scores.ladder.range} sessions</span></div>
+      <div class="card-header"><span class="card-title">Pay Ladder Position</span><span class="card-badge" style="color:#C3A579;background:rgba(195,165,121,0.1);border:1px solid rgba(195,165,121,0.25)">${scores.ladder.label} &bull; ${scores.ladder.range} sessions</span></div>
       <div class="ladder-track">`;
     LADDER_LEVELS.forEach(L => {
       const isActive = L.level === scores.ladder.level;
@@ -1569,7 +1595,7 @@ function renderCoachDetail() {
     });
     html += '</div>';
     const toNext = scores.ladder.level < 6 ? LADDER_LEVELS[scores.ladder.level].min - (ppData?.completed||0) : 0;
-    if (toNext > 0) html += `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">${toNext.toFixed(0)} more sessions to unlock Level ${scores.ladder.level+1}</div>`;
+    if (toNext > 0) html += `<div style="font-size:11px;color:#6F6F6F;margin-top:4px">${toNext.toFixed(0)} more sessions to unlock Level ${scores.ladder.level+1}</div>`;
     html += '</div>';
   }
 
@@ -1595,8 +1621,8 @@ function renderCoachDetail() {
         <div class="card-title" style="margin-bottom:12px">Outcomes</div>
         ${renderProgress('Active Clients', ppData.active_clients||0, 15, 'fill-gold')}
         ${renderProgress('Unique Clients', ppData.unique_clients||0, 20, 'fill-blue')}
-        <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">Revenue: <strong style="color:var(--text-secondary)">${fmtCurrency(ppData.revenue||0)}</strong></div>
-        <div style="font-size:12px;color:var(--text-muted)">Rev/Session: <strong style="color:var(--text-secondary)">$${(ppData.rev_per_session||0).toFixed(0)}</strong></div>
+        <div style="margin-top:8px;font-size:12px;color:#6F6F6F">Revenue: <strong style="color:#3A3A3A">${fmtCurrency(ppData.revenue||0)}</strong></div>
+        <div style="font-size:12px;color:#6F6F6F">Rev/Session: <strong style="color:#3A3A3A">$${(ppData.rev_per_session||0).toFixed(0)}</strong></div>
       </div>
     </div>`;
   }
@@ -1608,23 +1634,23 @@ function renderCoachDetail() {
       <div class="grid-3">
         <div>${renderProgress('Curriculum Progress', lrn.progress*100, 100, 'fill-gold')}</div>
         <div>${renderProgress('Assessment Score', lrn.score*100, 100, lrn.score>=0.85?'fill-green':'fill-orange')}</div>
-        <div style="font-size:12px;color:var(--text-muted);padding-top:4px">
-          Position: <strong style="color:var(--text-secondary)">${lrn.curriculum_position||'--'}</strong><br>
-          Status: <strong style="color:var(--text-secondary)">${lrn.status||'--'}</strong><br>
-          ${lrn.completion_date ? `Completed: <strong style="color:#22c55e">${lrn.completion_date.slice(0,10)}</strong>` : `Last Active: <strong>${(lrn.last_connection||'').slice(0,10)||'--'}</strong>`}
+        <div style="font-size:12px;color:#6F6F6F;padding-top:4px">
+          Position: <strong style="color:#3A3A3A">${lrn.curriculum_position||'--'}</strong><br>
+          Status: <strong style="color:#3A3A3A">${lrn.status||'--'}</strong><br>
+          ${lrn.completion_date ? `Completed: <strong style="color:#1A5C38">${lrn.completion_date.slice(0,10)}</strong>` : `Last Active: <strong>${(lrn.last_connection||'').slice(0,10)||'--'}</strong>`}
         </div>
       </div>
     </div>`;
   } else {
-    html += `<div class="card" style="margin-bottom:16px;border-left:3px solid var(--status-at-risk)">
+    html += `<div class="card" style="margin-bottom:16px;border-left:3px solid #8A2F2B">
       <div class="card-title" style="margin-bottom:8px">Learning</div>
-      <div style="font-size:12px;color:var(--status-at-risk)">No learning data found for this coach. Enroll in the 12-week curriculum immediately.</div>
+      <div style="font-size:12px;color:#8A2F2B">No learning data found for this coach. Enroll in the 12-week curriculum immediately.</div>
     </div>`;
   }
 
   // Diagnosis
   if (diag) {
-    html += `<div class="card" style="margin-bottom:16px;border-left:3px solid var(--gold)">
+    html += `<div class="card" style="margin-bottom:16px;border-left:3px solid #3A3A3A">
       <div class="card-header"><span class="card-title">Coaching Diagnosis</span></div>
       <div class="diagnosis-card">
         <div class="diagnosis-trigger">${diag.diag} &mdash; Focus: ${diag.focus}</div>
@@ -1813,7 +1839,8 @@ function updateSelectors() {
 
 // Boot
 document.addEventListener('DOMContentLoaded', () => {
-  Chart.defaults.color = '#606060';
+  Chart.defaults.color = '#6F6F6F';
+  Chart.defaults.font.family = "'Space Grotesk', sans-serif";
   initControls();
   render();
 });
