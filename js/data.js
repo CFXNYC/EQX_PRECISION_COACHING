@@ -58,7 +58,18 @@
      belong here — never a fuzzy/similarity guess. */
   const ALIAS_MAP = {
     "ryanmartinez01": "ryanmartinez", // directory disambiguation suffix; confirmed same person as performance's "Ryan Martinez"
+    "cesarsanchez01": "cesarsanchez", // directory disambiguation suffix; confirmed same person as performance's "Cesar Sanchez"
   };
+
+  /* ── Pilot tier scope ─────────────────────────────────────────
+     Precision Coaching targets the base "Coach" tier only — Coach+,
+     Coach X, Provisional Coach, Tier 1, Equifit Specialist variants,
+     "MOD, PT", and "Coach - Advantage" are explicitly out of scope
+     per direct instruction. Applied to both source files before any
+     joining happens, so every downstream view (totals, rankings,
+     dropdowns, the coach directory) only ever sees Coach-tier coaches. */
+  const IN_SCOPE_JOB_DESC = "PT - Coach";   // pilot_coach_data.json's job_desc field
+  const IN_SCOPE_JOB_TITLE = "PT - Coach";  // pilot_coach_directory.json's job_title field
 
   /* ── normalizeCoachName ──────────────────────────────────────
      lowercase → trim → strip diacritics → remove apostrophes/
@@ -191,7 +202,33 @@
   }
 
   /* ── Build the unified coach model ──────────────────────────── */
-  function buildModel(performanceRecords, directoryRecords) {
+  function buildModel(performanceRecordsRaw, directoryRecordsRaw) {
+    // Scope to the base Coach tier before anything else — see IN_SCOPE_JOB_DESC/
+    // IN_SCOPE_JOB_TITLE above. Everything downstream (join, scoring, dataQuality)
+    // operates only on this filtered set.
+    const performanceExcludedByTier = performanceRecordsRaw.filter(r => r.job_desc !== IN_SCOPE_JOB_DESC);
+    const performanceRecords = performanceRecordsRaw.filter(r => r.job_desc === IN_SCOPE_JOB_DESC);
+    const directoryExcludedByTier = directoryRecordsRaw.filter(r => r.job_title !== IN_SCOPE_JOB_TITLE);
+    const directoryRecords = directoryRecordsRaw.filter(r => r.job_title === IN_SCOPE_JOB_TITLE);
+
+    function tallyByField(records, field) {
+      const tally = {};
+      records.forEach((r) => { const v = r[field]; tally[v] = (tally[v] || 0) + 1; });
+      return tally;
+    }
+    const tierScope = {
+      job_desc_in_scope: IN_SCOPE_JOB_DESC,
+      job_title_in_scope: IN_SCOPE_JOB_TITLE,
+      performance_records_total: performanceRecordsRaw.length,
+      performance_records_in_scope: performanceRecords.length,
+      performance_records_excluded: performanceExcludedByTier.length,
+      performance_records_excluded_by_job_desc: tallyByField(performanceExcludedByTier, "job_desc"),
+      directory_records_total: directoryRecordsRaw.length,
+      directory_records_in_scope: directoryRecords.length,
+      directory_records_excluded: directoryExcludedByTier.length,
+      directory_records_excluded_by_job_title: tallyByField(directoryExcludedByTier, "job_title"),
+    };
+
     const perfIndex = groupPerformanceByNormalizedName(performanceRecords);
     const dirIndex = buildDirectoryIndex(directoryRecords);
 
@@ -316,6 +353,7 @@
         directory_only: unresolvedDirectoryOnly,
       },
       missing_required_kpi_fields: missingKpiFields,
+      tier_scope: tierScope,
       // scoring_coverage_distribution is appended later by calculations.js,
       // once scores exist to distribute.
     };
@@ -326,8 +364,10 @@
         directory_source: "pilot_coach_directory.json",
         loaded_at: new Date().toISOString(),
         as_of_date: null, // not present anywhere in either source file — honestly unavailable, never invented
-        performance_record_count: performanceRecords.length,
+        performance_record_count: performanceRecords.length, // in-scope (Coach tier) — what the dashboard operates on
+        performance_record_count_raw: performanceRecordsRaw.length, // true total rows in pilot_coach_data.json, before tier scoping
         directory_record_count: directoryRecords.length,
+        directory_record_count_raw: directoryRecordsRaw.length,
         matched_count: matchedCount,
         needs_data_count: needsDataCount,
         no_kpi_data_count: noKpiDataCount,
@@ -363,6 +403,7 @@
   function logDataQualityReport(dq) {
     /* eslint-disable no-console */
     console.groupCollapsed("%cPrecision Coaching — Data Quality Report", "font-weight:bold");
+    console.log("Tier scope — Coach-level only:", dq.tier_scope);
     console.log("Performance records:", dq.performance_record_count);
     console.log("Directory records:", dq.directory_record_count);
     console.log("Matched:", dq.matched_count, "| Needs data:", dq.needs_data_count, "| No KPI data:", dq.no_kpi_data_count);
