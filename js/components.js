@@ -49,17 +49,18 @@
     return `<span class="badge badge-${band.tone}">${band.label}</span>`;
   }
 
+  /* Only the exception case (no performance record yet) gets a badge — the
+     normal case (has performance data) is unmarked to keep the roster clean. */
   function mappingBadge(mappingStatus) {
-    if (mappingStatus === "needs_data") return `<span class="badge badge-needs-data">Needs Data</span>`;
-    if (mappingStatus === "no_kpi_data") return `<span class="badge badge-no-kpi">No KPI Data</span>`;
-    return `<span class="badge badge-matched">Matched</span>`;
+    if (mappingStatus === "no_kpi_data") return `<span class="badge badge-no-kpi">No Performance Data</span>`;
+    return "";
   }
 
   /* Overall-score text shown anywhere a coach's score appears. Honors the
-     60% coverage gate and the no_kpi_data case — never renders a numeric
-     score for either. */
+     60% coverage gate and the no-performance-data case — never renders a
+     numeric score for either. */
   function overallScoreDisplay(coach) {
-    if (!coach.raw_performance) return { text: "—", sub: "No KPI data available", insufficient: false, noKpi: true };
+    if (!coach.raw_performance) return { text: "—", sub: "No Performance Data", insufficient: false, noKpi: true };
     if (!coach.score_coverage || !coach.score_coverage.meets_threshold) {
       return { text: "—", sub: "Insufficient data to calculate a reliable score", insufficient: true, noKpi: false };
     }
@@ -138,11 +139,6 @@
       </div>`;
   }
 
-  /* ── Needs-data legend line (Coach interface requirement) ────── */
-  function needsDataLegend() {
-    return `<div class="data-legend">** Coach is included in pilot performance data, but club and directory information still need to be confirmed.</div>`;
-  }
-
   /* ── Coach card (grid item) ───────────────────────────────────── */
   function miniScoreRow(coach) {
     const vals = [
@@ -176,7 +172,7 @@
           </div>
           <div class="coach-card-score" style="color:${toneColor}">${scoreInfo.text}</div>
         </div>
-        ${coach.mapping_status !== "no_kpi_data" ? miniScoreRow(coach) : `<div class="coach-card-minis"><span class="label-xs">No KPI data available</span></div>`}
+        ${coach.mapping_status !== "no_kpi_data" ? miniScoreRow(coach) : `<div class="coach-card-minis"><span class="label-xs">No Performance Data</span></div>`}
         <div class="coach-card-foot">
           ${mappingBadge(coach.mapping_status)}
         </div>
@@ -185,6 +181,6 @@
 
   window.COMPONENTS = {
     icon, escapeHtml, badgeForScore, mappingBadge, overallScoreDisplay, coverageBadge,
-    kpiCard, targetBar, scoreCategoryDetail, needsDataLegend, coachCard, ICONS,
+    kpiCard, targetBar, scoreCategoryDetail, coachCard, ICONS,
   };
 })();

@@ -1,10 +1,7 @@
 /* ═══════════════════════════════════════════════════════════
    PAGE — BEHAVIOR
    ---------------------------------------------------------
-   pilot_coach_data.json has no lead/contact/appointment-stage
-   fields, so the mock daily lead funnel is removed entirely (not
-   replaced with a substitute funnel). This page instead shows the
-   real Process + Persistence KPIs, their target attainment, and
+   Shows Process + Persistence KPIs, their target attainment, and
    an automatically generated behavior diagnosis.
 ═══════════════════════════════════════════════════════════ */
 
@@ -28,8 +25,8 @@
   };
 
   function coachOptionsHtml() {
-    const opts = [`<option value="ALL">All Coaches — Org Aggregate</option>`];
-    C.scoreableCoaches().forEach((c) => {
+    const opts = [`<option value="ALL">All Coaches — Pilot Aggregate</option>`];
+    C.allApprovedCoaches().slice().sort((a, b) => a.display_name.localeCompare(b.display_name)).forEach((c) => {
       opts.push(`<option value="${c.coach_id}">${K.escapeHtml(c.display_name)} — ${K.escapeHtml(c.club_name || "—")}</option>`);
     });
     return opts.join("");
@@ -47,10 +44,11 @@
         cpt_per_week: orgAgg.cpt_per_week,
         sessions_per_month: orgAgg.sessions_per_month,
       });
-      return { label: `All Coaches (${orgAgg.coach_count} scoreable)`, orgAgg, ...scored };
+      return { label: "All Coaches — Pilot Aggregate", orgAgg, ...scored };
     }
     const coach = C.getCoach(state.coachId);
-    if (!coach || !coach.raw_performance) return null;
+    if (!coach) return null;
+    if (!coach.raw_performance) return { label: coach.display_name, noPerformanceData: true };
     return {
       label: coach.display_name, cm: coach.calculated_metrics,
       process_score: coach.process_score, persistence_score: coach.persistence_score,
@@ -61,7 +59,8 @@
   function renderKpis() {
     const data = currentScoreData();
     const el = document.getElementById("behavior-kpi-grid");
-    if (!data) { el.innerHTML = `<div class="empty-state">No performance data available.</div>`; return; }
+    if (!data) { el.innerHTML = `<div class="empty-state">No coach selected.</div>`; return; }
+    if (data.noPerformanceData) { el.innerHTML = `<div class="empty-state">No Performance Data available for this coach yet.</div>`; return; }
     const m = state.coachId === "ALL" ? data.orgAgg : data.cm;
     const cards = [
       { label: "Equifits Completed", value: m.eqfs_completed, sub: "Cumulative to date", iconName: "zap" },
@@ -79,7 +78,7 @@
   function renderScoreBreakdown() {
     const el = document.getElementById("behavior-score-breakdown");
     const data = currentScoreData();
-    if (!data) { el.innerHTML = `<div class="empty-state">No performance data available.</div>`; return; }
+    if (!data || data.noPerformanceData) { el.innerHTML = `<div class="empty-state">No Performance Data available for this coach yet.</div>`; return; }
     el.innerHTML = `
       <div class="grid-2">
         ${K.scoreCategoryDetail("Process · 30% of overall", data.process_score, data.score_coverage.process_coverage, data.score_detail.process)}
@@ -99,7 +98,7 @@
       return;
     }
     const coach = C.getCoach(state.coachId);
-    if (!coach || !coach.raw_performance) { el.innerHTML = `<div class="empty-state">No performance data available.</div>`; return; }
+    if (!coach || !coach.raw_performance) { el.innerHTML = `<div class="empty-state">No Performance Data available for this coach yet.</div>`; return; }
     const diagnoses = RECS.diagnoseCoach(coach);
     el.innerHTML = diagnoses.length
       ? `<ul>${diagnoses.map(d => `<li><strong>${K.escapeHtml(DIAGNOSIS_LABELS[d.type])}:</strong> ${K.escapeHtml(d.statement)} <span class="label-xs">(${d.skills.map(K.escapeHtml).join(", ")})</span></li>`).join("")}</ul>`
@@ -124,7 +123,7 @@
       <div class="wrap">
         <div class="page-head">
           <div class="page-title">Behavior</div>
-          <div class="page-sub">What behaviors are driving improvement? Process and Persistence KPIs against target, with an automatically generated behavior diagnosis.</div>
+          <div class="page-sub">Review the Process and Persistence behaviors influencing coach performance and development.</div>
         </div>
 
         <div class="section-block">

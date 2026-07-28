@@ -297,7 +297,7 @@
 
     D.coaches.forEach((coach) => {
       Object.assign(coach, scoreCoach(coach));
-      if (coach.mapping_status === "no_kpi_data") { noKpiCount++; return; }
+      if (!coach.raw_performance) { noKpiCount++; return; }
       if (coach.score_coverage.meets_threshold) {
         bandCounts[statusBandFor(coach.overall_score).label]++;
       } else {
@@ -344,13 +344,16 @@
   }
 
   /* ── Lookups & coach-set helpers ─────────────────────────────── */
+  // Every helper here draws from D.coaches — the single canonical, approved
+  // (directory-controlled) coach collection built in data.js. There is no
+  // separate population for any tab: Overview, Growth, Behavior, and Coach
+  // all read through these same functions.
   function getCoach(coachId) { return D.coaches.find(c => c.coach_id === coachId); }
-  function matchedCoaches() { return D.coaches.filter(c => c.mapping_status === "matched"); }
-  function needsDataCoaches() { return D.coaches.filter(c => c.mapping_status === "needs_data"); }
-  function noKpiDataCoaches() { return D.coaches.filter(c => c.mapping_status === "no_kpi_data"); }
-  // "Scoreable" = has raw_performance (matched + needs_data). needs_data coaches
-  // remain in overall performance totals per spec, just excluded from per-club rollups.
-  function scoreableCoaches() { return D.coaches.filter(c => c.mapping_status !== "no_kpi_data"); }
+  function allApprovedCoaches() { return D.coaches; }
+  function matchedCoaches() { return D.coaches.filter(c => !!c.raw_performance); }
+  function noKpiDataCoaches() { return D.coaches.filter(c => !c.raw_performance); }
+  // "Scoreable" = approved coaches with a performance record to score.
+  function scoreableCoaches() { return matchedCoaches(); }
   function reliablyScored(coaches) { return coaches.filter(c => c.score_coverage && c.score_coverage.meets_threshold); }
 
   function sumField(rows, field) { return rows.reduce((s, r) => s + (r[field] || 0), 0); }
@@ -419,7 +422,8 @@
       return {
         club_number: club.club_number,
         club_name: club.club_name,
-        matched_coach_count: clubMatched.length,
+        roster_coach_count: club.coach_ids.length, // all approved coaches assigned to this club
+        matched_coach_count: clubMatched.length,    // of which, have performance data
         scored_coach_count: scored.length,
         avg_score: avgScore,
         avg_coverage_pct: avgCoveragePct,
@@ -428,9 +432,6 @@
   }
 
   function performanceScoreDistribution() {
-    // needs_data coaches remain in overall performance totals per spec,
-    // so the org-wide distribution draws from all scoreable coaches, not
-    // matched-only (that restriction applies specifically to club rankings).
     const pool = reliablyScored(scoreableCoaches());
     const buckets = STATUS_BANDS.map(b => ({ ...b, count: 0 }));
     pool.forEach((c) => {
@@ -444,7 +445,7 @@
   window.CALC = {
     SCORING_CONFIG, STATUS_BANDS, WEEKS_PER_MONTH, COVERAGE_THRESHOLD,
     statusBandFor, getCoach,
-    matchedCoaches, needsDataCoaches, noKpiDataCoaches, scoreableCoaches, reliablyScored,
+    allApprovedCoaches, matchedCoaches, noKpiDataCoaches, scoreableCoaches, reliablyScored,
     sumField, avgField,
     orgAggregateMetrics, orgAverageScores,
     clubRankings, performanceScoreDistribution,

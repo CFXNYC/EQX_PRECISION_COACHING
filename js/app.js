@@ -15,7 +15,7 @@
     const D = window.PRECISION_DATA;
     document.getElementById("topbar-coach-count").textContent = `${D.coaches.length} coaches`;
     document.getElementById("topbar-club-count").textContent = `${D.clubs.length} pilot clubs`;
-    document.getElementById("topbar-asof").textContent = D.meta.as_of_date || "Not provided in source";
+    document.getElementById("topbar-asof").textContent = D.meta.as_of_date || "Not available";
     const loadedEl = document.getElementById("topbar-loaded");
     if (loadedEl) loadedEl.textContent = new Date(D.meta.loaded_at).toLocaleString();
   }

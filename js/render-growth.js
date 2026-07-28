@@ -1,12 +1,9 @@
 /* ═══════════════════════════════════════════════════════════
    PAGE — GROWTH
    ---------------------------------------------------------
-   pilot_coach_data.json contains a single current snapshot per
-   coach — no dated historical records — so this page does NOT
-   manufacture a trend line. Instead it shows a current-state
-   Three Ps comparison: Production / Process / Persistence
-   component breakdowns with target-vs-actual bars, for either
-   the org aggregate or an individual coach.
+   Shows a current-state Three Ps comparison: Production / Process /
+   Persistence component breakdowns with target-vs-actual bars, for
+   either the pilot aggregate or an individual coach.
 ═══════════════════════════════════════════════════════════ */
 
 (function () {
@@ -19,8 +16,8 @@
   const state = { coachId: "ALL" };
 
   function coachOptionsHtml() {
-    const opts = [`<option value="ALL">All Coaches — Org Aggregate</option>`];
-    C.scoreableCoaches().forEach((c) => {
+    const opts = [`<option value="ALL">All Coaches — Pilot Aggregate</option>`];
+    C.allApprovedCoaches().slice().sort((a, b) => a.display_name.localeCompare(b.display_name)).forEach((c) => {
       opts.push(`<option value="${c.coach_id}">${K.escapeHtml(c.display_name)} — ${K.escapeHtml(c.club_name || "—")}</option>`);
     });
     return opts.join("");
@@ -42,10 +39,11 @@
         sessions_per_month: orgAgg.sessions_per_month,
       };
       const scored = C.scoreAggregateMetrics(values);
-      return { label: `All Coaches (${orgAgg.coach_count} scoreable)`, ...scored };
+      return { label: "All Coaches — Pilot Aggregate", ...scored };
     }
     const coach = C.getCoach(state.coachId);
-    if (!coach || !coach.raw_performance) return null;
+    if (!coach) return null;
+    if (!coach.raw_performance) return { label: coach.display_name, noPerformanceData: true };
     return {
       label: coach.display_name,
       production_score: coach.production_score, process_score: coach.process_score,
@@ -57,7 +55,11 @@
   function renderScoreCards() {
     const el = document.getElementById("growth-score-cards");
     const data = currentScoreData();
-    if (!data) { el.innerHTML = `<div class="empty-state">No performance data available for this coach.</div>`; return; }
+    if (!data) { el.innerHTML = `<div class="empty-state">No coach selected.</div>`; return; }
+    if (data.noPerformanceData) {
+      el.innerHTML = `<div class="card card-pad"><div class="section-header"><span class="label-sm">${K.escapeHtml(data.label)}</span></div><div class="empty-state">No Performance Data available for this coach yet.</div></div>`;
+      return;
+    }
 
     const overallText = data.score_coverage.meets_threshold ? String(data.overall_score) : "—";
     const overallSub = data.score_coverage.meets_threshold
@@ -95,11 +97,10 @@
       <div class="wrap">
         <div class="page-head">
           <div class="page-title">Growth</div>
-          <div class="page-sub">Is the coach improving? Current-state Three Ps performance against target — org aggregate or an individual coach.</div>
+          <div class="page-sub">Is the coach improving? Review current Three Ps performance against established targets for the pilot or an individual coach.</div>
         </div>
 
         <div class="section-block">
-          <div class="info-banner">pilot_coach_data.json contains a single current snapshot per coach, with no dated historical records. This view compares current performance against target rather than showing a trend line — a historical trend will become available once multiple dated snapshots exist.</div>
           <div class="coach-search-bar">
             <div class="select-wrap">
               <select id="growth-coach-select" onchange="PAGE_GROWTH.onCoachChange(this.value)">${coachOptionsHtml()}</select>

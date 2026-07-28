@@ -1,12 +1,10 @@
 /* ═══════════════════════════════════════════════════════════
    PAGE — OVERVIEW
-   Business performance summary driven entirely by
-   pilot_coach_data.json + pilot_coach_directory.json: pilot
-   coach count, Three Ps org scores, and weighted business KPIs
-   (matched pilot coaches only — see DATA HANDLING in the build
-   spec). Data-quality/mapping diagnostics (unmatched records,
-   raw record totals) are intentionally NOT shown on this tab;
-   they remain available internally via CALC/D for validation.
+   Business performance summary: approved pilot coach count,
+   Three Ps org scores, and weighted business KPIs (computed from
+   approved coaches with performance data). Data-quality diagnostics
+   are intentionally NOT shown on this tab; they remain available
+   internally via CALC/D for validation.
 ═══════════════════════════════════════════════════════════ */
 
 (function () {
@@ -43,7 +41,7 @@
 
   function rowOneKpis(s) {
     return [
-      { label: "Pilot Coaches", value: s.matchedCount, sub: "Performance + directory matched", iconName: "userCheck" },
+      { label: "Pilot Coaches", value: s.matchedCount, sub: "Coaches with performance data", iconName: "userCheck" },
       { label: "Active Clients", value: s.orgAgg.active_clients, sub: `Across ${s.matchedCount} pilot coaches`, iconName: "users" },
       { label: "Average Weekly Sessions", value: num1(s.orgAgg.avg_weekly_sessions), sub: "Total sessions / active weeks", iconName: "calendar" },
     ];
@@ -96,7 +94,7 @@
         <div class="rank-num">${i + 1}</div>
         <div class="rank-info">
           <div class="rank-name">${K.escapeHtml(r.club_name)}</div>
-          <div class="rank-meta">${r.scored_coach_count} scored · ${r.matched_coach_count} matched · ${r.avg_coverage_pct}% avg coverage</div>
+          <div class="rank-meta">${r.scored_coach_count} of ${r.roster_coach_count} coaches scored · ${r.avg_coverage_pct}% avg coverage</div>
         </div>
         <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${r.avg_score !== null ? Math.round((r.avg_score / max) * 100) : 0}%"></div></div>
         <div class="rank-score">${r.avg_score !== null ? r.avg_score : "—"}</div>
@@ -146,7 +144,7 @@
       <div class="wrap">
         <div class="page-head">
           <div class="page-title">Precision Coaching Overview</div>
-          <div class="page-sub">Where the pilot stands today, sourced directly from pilot_coach_data.json and pilot_coach_directory.json — business performance across matched pilot coaches, the Three Ps, and results by club.</div>
+          <div class="page-sub">Where the pilot stands today, including business performance, Three Ps scores, and results by club.</div>
         </div>
 
         <div class="section-block">
@@ -158,7 +156,7 @@
         </div>
 
         <div class="section-block">
-          <div class="section-header"><span class="label-sm">Three Ps Performance</span><span class="label-xs">Weighted aggregate · matched pilot coaches</span></div>
+          <div class="section-header"><span class="label-sm">Three Ps Performance</span><span class="label-xs">Weighted aggregate · coaches with performance data</span></div>
           <div class="kpi-grid kpi-grid-3">${rowTwoKpis(s).map(K.kpiCard).join("")}</div>
         </div>
 
@@ -168,11 +166,11 @@
 
         <div class="section-block grid-2">
           <div class="card card-pad">
-            <div class="section-header"><span class="label-sm">Club Ranking</span><span class="label-xs">By avg Three Ps score · matched coaches only</span></div>
+            <div class="section-header"><span class="label-sm">Club Ranking</span><span class="label-xs">By avg Three Ps score · coaches with performance data</span></div>
             ${clubRankingHtml()}
           </div>
           <div class="card card-pad">
-            <div class="section-header"><span class="label-sm">Performance Score Distribution</span><span class="label-xs">Scoreable coaches</span></div>
+            <div class="section-header"><span class="label-sm">Performance Score Distribution</span><span class="label-xs">Coaches with performance data</span></div>
             ${distributionHtml()}
           </div>
         </div>

@@ -1,19 +1,26 @@
 /* ═══════════════════════════════════════════════════════════
    PRECISION COACHING — DATA LAYER + BOOTSTRAP
    ---------------------------------------------------------
-   Loads the two real source files:
-     ./data/pilot_coach_data.json       (performance — source of truth)
-     ./data/pilot_coach_directory.json  (roster — org fields only)
+   Loads the two backing records for the pilot:
+     ./data/pilot_coach_data.json       (performance — enrichment only)
+     ./data/pilot_coach_directory.json  (approved pilot roster)
 
    Responsibilities of this file:
-     1. Fetch both JSON files asynchronously (cache:"no-store" +
+     1. Fetch both files asynchronously (cache:"no-store" +
         a Date.now() cache-buster), validate their shape, and fail
         loudly (never fall back to mock data) if either is missing
         or malformed.
-     2. Join performance records to directory records on a strictly
-        normalized coach name (see normalizeCoachName below) — no
-        fuzzy/similarity matching, only exact-key + an explicit
-        alias table for confirmed exceptions.
+     2. THE APPROVED ROSTER CONTROLS ELIGIBILITY. Every record in
+        the directory is an approved pilot coach — full stop. The
+        dashboard population is built by starting from that roster
+        and enriching each entry with a matching performance record
+        when one exists (see normalizeCoachName below for the join
+        key — no fuzzy/similarity matching, only exact-key + an
+        explicit alias table for confirmed exceptions). Performance
+        records that don't match any approved roster entry are never
+        added to the dashboard — they're set aside in an internal
+        diagnostic collection (unmatchedPerformanceRecords) for
+        follow-up, never surfaced in the UI.
      3. Assemble the final window.PRECISION_DATA model.
      4. ARCHITECTURE NOTE — script load order:
         Every other module in this app (calculations.js, recommendations.js,
@@ -61,15 +68,29 @@
     "cesarsanchez01": "cesarsanchez", // directory disambiguation suffix; confirmed same person as performance's "Cesar Sanchez"
   };
 
-  /* ── Pilot tier scope ─────────────────────────────────────────
-     Precision Coaching targets the base "Coach" tier only — Coach+,
-     Coach X, Provisional Coach, Tier 1, Equifit Specialist variants,
-     "MOD, PT", and "Coach - Advantage" are explicitly out of scope
-     per direct instruction. Applied to both source files before any
-     joining happens, so every downstream view (totals, rankings,
-     dropdowns, the coach directory) only ever sees Coach-tier coaches. */
-  const IN_SCOPE_JOB_DESC = "PT - Coach";   // pilot_coach_data.json's job_desc field
-  const IN_SCOPE_JOB_TITLE = "PT - Coach";  // pilot_coach_directory.json's job_title field
+  /* ── Display-name corrections ─────────────────────────────────
+     The directory is the display-name authority, but two confirmed
+     records carry a data-entry artifact in the coach_name field
+     itself (a disambiguation suffix left over from onboarding, with
+     no second same-named coach to disambiguate from). Keyed by
+     coach_id so the correction is scoped to exactly the confirmed
+     record — never a blanket suffix-stripping rule. Matching still
+     runs on the raw name (via ALIAS_MAP above); this only affects
+     what is displayed. */
+  const DISPLAY_NAME_OVERRIDES = {
+    "PC-090": "Cesar Sanchez",  // directory had "Cesar Sanchez01"; performance + audit confirm "Cesar Sanchez"
+    "PC-024": "Ryan Martinez",  // directory had "Ryan Martinez01"; same artifact, same pattern as PC-090 (see ALIAS_MAP note above)
+  };
+
+  /* ── Approved pilot population ─────────────────────────────────
+     Every row in pilot_coach_directory.json is an approved pilot
+     coach. That file is the eligibility gate for the entire
+     dashboard — no tier/job-title filtering is applied to it, and
+     performance records are matched against it by name only,
+     regardless of the performance record's own job_desc label
+     (a coach's tier label can differ slightly between systems;
+     what matters for enrichment is that the two records are the
+     same confirmed person). */
 
   /* ── normalizeCoachName ──────────────────────────────────────
      lowercase → trim → strip diacritics → remove apostrophes/
@@ -152,13 +173,14 @@
   }
 
   /* ── Sequential script injection ────────────────────────────── */
+  const BOOT_VERSION = Date.now(); // same cache-busting approach as the JSON fetches above
   function loadScriptsSequentially(paths, onDone, onError) {
     let i = 0;
     function next() {
       if (i >= paths.length) { onDone(); return; }
       const src = paths[i++];
       const s = document.createElement("script");
-      s.src = src;
+      s.src = `${src}?v=${BOOT_VERSION}`;
       s.onload = next;
       s.onerror = () => onError(new Error(`Failed to load ${src}`));
       document.body.appendChild(s);
@@ -201,89 +223,32 @@
     return { byName, duplicates };
   }
 
-  /* ── Build the unified coach model ──────────────────────────── */
+  /* ── Build the canonical coach model ────────────────────────────
+     Sequence (see file header): the approved directory is the
+     eligibility gate. Every directory row becomes exactly one
+     dashboard coach record, enriched with a matching performance
+     record when one exists. Performance records with no match are
+     NEVER added as dashboard coaches — they go to an internal
+     diagnostic collection only. */
   function buildModel(performanceRecordsRaw, directoryRecordsRaw) {
-    // Scope to the base Coach tier before anything else — see IN_SCOPE_JOB_DESC/
-    // IN_SCOPE_JOB_TITLE above. Everything downstream (join, scoring, dataQuality)
-    // operates only on this filtered set.
-    const performanceExcludedByTier = performanceRecordsRaw.filter(r => r.job_desc !== IN_SCOPE_JOB_DESC);
-    const performanceRecords = performanceRecordsRaw.filter(r => r.job_desc === IN_SCOPE_JOB_DESC);
-    const directoryExcludedByTier = directoryRecordsRaw.filter(r => r.job_title !== IN_SCOPE_JOB_TITLE);
-    const directoryRecords = directoryRecordsRaw.filter(r => r.job_title === IN_SCOPE_JOB_TITLE);
-
-    function tallyByField(records, field) {
-      const tally = {};
-      records.forEach((r) => { const v = r[field]; tally[v] = (tally[v] || 0) + 1; });
-      return tally;
-    }
-    const tierScope = {
-      job_desc_in_scope: IN_SCOPE_JOB_DESC,
-      job_title_in_scope: IN_SCOPE_JOB_TITLE,
-      performance_records_total: performanceRecordsRaw.length,
-      performance_records_in_scope: performanceRecords.length,
-      performance_records_excluded: performanceExcludedByTier.length,
-      performance_records_excluded_by_job_desc: tallyByField(performanceExcludedByTier, "job_desc"),
-      directory_records_total: directoryRecordsRaw.length,
-      directory_records_in_scope: directoryRecords.length,
-      directory_records_excluded: directoryExcludedByTier.length,
-      directory_records_excluded_by_job_title: tallyByField(directoryExcludedByTier, "job_title"),
-    };
+    const directoryRecords = directoryRecordsRaw; // every row is an approved pilot coach
+    const performanceRecords = performanceRecordsRaw; // matched by name regardless of tier label
 
     const perfIndex = groupPerformanceByNormalizedName(performanceRecords);
     const dirIndex = buildDirectoryIndex(directoryRecords);
 
     const coaches = [];
     const aliasMatches = [];
-    let matchedCount = 0, needsDataCount = 0, noKpiDataCount = 0;
+    let matchedCount = 0, noKpiDataCount = 0;
 
-    // Performance-side records: become "matched" or "needs_data".
-    perfIndex.byName.forEach((perfRecord, normKey) => {
-      const dirRecord = dirIndex.byName.get(normKey);
-      if (dirRecord) {
-        matchedCount++;
-        coaches.push({
-          coach_id: dirRecord.coach_id,
-          source_coach_name: perfRecord.preferred_name,
-          display_name: dirRecord.coach_name,
-          normalized_name: normKey,
-          email: dirRecord.email,
-          job_title: dirRecord.job_title,
-          club_number: dirRecord.club_number,
-          club_name: dirRecord.club_name,
-          cohort: dirRecord.cohort,
-          roster_status: dirRecord.status,
-          directory_hire_date: dirRecord.hire_date !== undefined ? dirRecord.hire_date : null,
-          mapping_status: "matched",
-          raw_performance: perfRecord,
-        });
-      } else {
-        needsDataCount++;
-        coaches.push({
-          coach_id: `NEEDS-${normKey}`,
-          source_coach_name: perfRecord.preferred_name,
-          display_name: `${perfRecord.preferred_name} **`,
-          normalized_name: normKey,
-          email: null,
-          job_title: null,
-          club_number: null,
-          club_name: "Needs Assignment",
-          cohort: null,
-          roster_status: null,
-          directory_hire_date: null,
-          mapping_status: "needs_data",
-          raw_performance: perfRecord,
-        });
-      }
-    });
-
-    // Directory-side records with no performance match: "no_kpi_data".
+    // One record per approved directory coach — never more, never fewer.
     dirIndex.byName.forEach((dirRecord, normKey) => {
-      if (perfIndex.byName.has(normKey)) return; // already matched above
-      noKpiDataCount++;
+      const perfRecord = perfIndex.byName.get(normKey) || null;
+      if (perfRecord) matchedCount++; else noKpiDataCount++;
       coaches.push({
         coach_id: dirRecord.coach_id,
         source_coach_name: dirRecord.coach_name,
-        display_name: dirRecord.coach_name,
+        display_name: DISPLAY_NAME_OVERRIDES[dirRecord.coach_id] || dirRecord.coach_name,
         normalized_name: normKey,
         email: dirRecord.email,
         job_title: dirRecord.job_title,
@@ -292,23 +257,23 @@
         cohort: dirRecord.cohort,
         roster_status: dirRecord.status,
         directory_hire_date: dirRecord.hire_date !== undefined ? dirRecord.hire_date : null,
-        mapping_status: "no_kpi_data",
-        raw_performance: null,
+        mapping_status: perfRecord ? "matched" : "no_kpi_data",
+        raw_performance: perfRecord,
       });
     });
 
-    // Detect which performance names were resolved via the alias map
+    // Detect which directory names were resolved via the alias map
     // (for dataQuality reporting only — matching itself already happened above).
     Object.keys(ALIAS_MAP).forEach((aliasKey) => {
       const canonical = ALIAS_MAP[aliasKey];
-      const perfMatch = coaches.find(c => c.normalized_name === canonical && c.raw_performance);
       const dirHit = directoryRecords.find(r => normalizeStripAliasStage(r.coach_name) === aliasKey);
-      if (perfMatch && dirHit) {
-        aliasMatches.push({ alias: aliasKey, canonical, performance_name: perfMatch.source_coach_name, directory_name: dirHit.coach_name });
+      const coachMatch = coaches.find(c => c.normalized_name === canonical && c.raw_performance);
+      if (dirHit && coachMatch) {
+        aliasMatches.push({ alias: aliasKey, canonical, directory_name: dirHit.coach_name, performance_name: coachMatch.raw_performance.preferred_name });
       }
     });
 
-    // Clubs — sourced entirely from the directory (never invented for needs_data coaches).
+    // Clubs — sourced entirely from the approved directory.
     const clubMap = new Map();
     directoryRecords.forEach((r) => {
       if (!clubMap.has(r.club_number)) {
@@ -322,8 +287,21 @@
     });
     const clubs = Array.from(clubMap.values()).sort((a, b) => a.club_name.localeCompare(b.club_name));
 
-    const unresolvedPerformanceOnly = coaches.filter(c => c.mapping_status === "needs_data").map(c => c.source_coach_name);
-    const unresolvedDirectoryOnly = coaches.filter(c => c.mapping_status === "no_kpi_data").map(c => c.source_coach_name);
+    // Performance records that matched no approved directory coach — retained
+    // here ONLY for internal diagnostics (console / dataQuality object).
+    // Never appended to `coaches`, never rendered in the UI.
+    const unmatchedPerformanceRecords = [];
+    perfIndex.byName.forEach((perfRecord, normKey) => {
+      if (dirIndex.byName.has(normKey)) return; // matched above
+      unmatchedPerformanceRecords.push({
+        name: perfRecord.preferred_name,
+        email: null, // not present in pilot_coach_data.json
+        source_club: null, // not present in pilot_coach_data.json
+        reporting_period: null, // source has no dated/period field
+        attempted_matching_key: normKey,
+        exclusion_reason: "No matching approved directory record",
+      });
+    });
 
     const REQUIRED_KPI_FIELDS = [
       "eqfs_completed", "comppt_completed", "active_clients", "conversion_rate",
@@ -340,46 +318,39 @@
     });
 
     const dataQuality = {
-      performance_record_count: performanceRecords.length,
+      approved_coach_count: coaches.length,
       directory_record_count: directoryRecords.length,
+      performance_record_count: performanceRecords.length,
       matched_count: matchedCount,
-      needs_data_count: needsDataCount,
       no_kpi_data_count: noKpiDataCount,
       duplicate_normalized_names_in_performance: perfIndex.duplicates,
       duplicate_normalized_names_in_directory: dirIndex.duplicates,
       alias_matches: aliasMatches,
-      unresolved_names: {
-        performance_only: unresolvedPerformanceOnly,
-        directory_only: unresolvedDirectoryOnly,
-      },
+      display_name_overrides: DISPLAY_NAME_OVERRIDES,
       missing_required_kpi_fields: missingKpiFields,
-      tier_scope: tierScope,
+      unmatchedPerformanceRecords, // internal diagnostic only — never rendered
       // scoring_coverage_distribution is appended later by calculations.js,
       // once scores exist to distribute.
     };
 
     return {
       meta: {
-        source: "pilot_coach_data.json",
-        directory_source: "pilot_coach_directory.json",
         loaded_at: new Date().toISOString(),
-        as_of_date: null, // not present anywhere in either source file — honestly unavailable, never invented
-        performance_record_count: performanceRecords.length, // in-scope (Coach tier) — what the dashboard operates on
-        performance_record_count_raw: performanceRecordsRaw.length, // true total rows in pilot_coach_data.json, before tier scoping
+        as_of_date: null, // not present anywhere in either backing record — honestly unavailable, never invented
+        approved_coach_count: coaches.length,
         directory_record_count: directoryRecords.length,
-        directory_record_count_raw: directoryRecordsRaw.length,
+        performance_record_count: performanceRecords.length,
         matched_count: matchedCount,
-        needs_data_count: needsDataCount,
         no_kpi_data_count: noKpiDataCount,
       },
       clubs,
       coaches,
       performanceRecords,
+      unmatchedPerformanceRecords, // internal diagnostic only — never rendered
       mappingSummary: {
         matched_count: matchedCount,
-        needs_data_count: needsDataCount,
         no_kpi_data_count: noKpiDataCount,
-        total_unified_coaches: coaches.length,
+        total_approved_coaches: coaches.length,
       },
       scoringConfig: {}, // populated by calculations.js
       dataQuality,
@@ -402,16 +373,15 @@
 
   function logDataQualityReport(dq) {
     /* eslint-disable no-console */
-    console.groupCollapsed("%cPrecision Coaching — Data Quality Report", "font-weight:bold");
-    console.log("Tier scope — Coach-level only:", dq.tier_scope);
-    console.log("Performance records:", dq.performance_record_count);
-    console.log("Directory records:", dq.directory_record_count);
-    console.log("Matched:", dq.matched_count, "| Needs data:", dq.needs_data_count, "| No KPI data:", dq.no_kpi_data_count);
+    console.groupCollapsed("%cPrecision Coaching — Data Quality Report (internal diagnostics, not shown in UI)", "font-weight:bold");
+    console.log("Approved pilot coaches:", dq.approved_coach_count, "(directory records:", dq.directory_record_count + ")");
+    console.log("With performance data:", dq.matched_count, "| Without performance data:", dq.no_kpi_data_count);
+    console.log("Performance records loaded:", dq.performance_record_count);
     console.log("Duplicate normalized names (performance):", dq.duplicate_normalized_names_in_performance);
     console.log("Duplicate normalized names (directory):", dq.duplicate_normalized_names_in_directory);
     console.log("Alias matches applied:", dq.alias_matches);
-    console.log("Unresolved — performance-only (needs_data):", dq.unresolved_names.performance_only);
-    console.log("Unresolved — directory-only (no_kpi_data):", dq.unresolved_names.directory_only);
+    console.log("Display-name overrides applied:", dq.display_name_overrides);
+    console.log("Excluded performance-only records (no approved match):", dq.unmatchedPerformanceRecords.length, dq.unmatchedPerformanceRecords);
     console.log("Missing required KPI fields (count of nulls by field):", dq.missing_required_kpi_fields);
     console.groupEnd();
     /* eslint-enable no-console */

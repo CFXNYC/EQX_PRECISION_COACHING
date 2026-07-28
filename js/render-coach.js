@@ -1,13 +1,9 @@
 /* ═══════════════════════════════════════════════════════════
    PAGE — COACH
    ---------------------------------------------------------
-   Directory: search by name/club, filter by club, mapping status,
-   and performance band. Profile: Performance Summary, KPI
-   Breakdown, Wins, Opportunities, Next Steps — sourced entirely
-   from pilot_coach_data.json + pilot_coach_directory.json.
-   Competency assessments, behavior heat maps, radar charts, mock
-   timelines, and the lead funnel are removed — no real source
-   data supports them.
+   Roster: search by name/club, filter by club, performance-data
+   availability, and performance band. Profile: Performance
+   Summary, KPI Breakdown, Wins, Opportunities, Next Steps.
 ═══════════════════════════════════════════════════════════ */
 
 (function () {
@@ -25,15 +21,13 @@
   function clubFilterOptionsHtml() {
     const opts = [`<option value="ALL">All Clubs</option>`];
     D.clubs.forEach(c => opts.push(`<option value="${c.club_number}">${K.escapeHtml(c.club_name)}</option>`));
-    opts.push(`<option value="NEEDS_ASSIGNMENT">Needs Assignment</option>`);
     return opts.join("");
   }
   function statusFilterOptionsHtml() {
     return [
-      `<option value="ALL">All Mapping Statuses</option>`,
-      `<option value="matched">Matched</option>`,
-      `<option value="needs_data">Needs Data</option>`,
-      `<option value="no_kpi_data">No KPI Data</option>`,
+      `<option value="ALL">All Coaches</option>`,
+      `<option value="matched">Has Performance Data</option>`,
+      `<option value="no_kpi_data">No Performance Data</option>`,
     ].join("");
   }
   function bandFilterOptionsHtml() {
@@ -51,9 +45,7 @@
         const clubMatch = (c.club_name || "").toLowerCase().includes(q);
         if (!nameMatch && !clubMatch) return false;
       }
-      if (state.clubFilter === "NEEDS_ASSIGNMENT") {
-        if (c.mapping_status !== "needs_data") return false;
-      } else if (state.clubFilter !== "ALL") {
+      if (state.clubFilter !== "ALL") {
         if (c.club_number !== state.clubFilter) return false;
       }
       if (state.statusFilter !== "ALL" && c.mapping_status !== state.statusFilter) return false;
@@ -81,7 +73,6 @@
   function renderPicker(container) {
     container.innerHTML = `
       <div class="section-block">
-        ${K.needsDataLegend()}
         <div class="coach-search-bar">
           <div class="search-wrap">
             ${K.icon("search", 13)}
@@ -147,14 +138,14 @@
       ["Repurchase Rate", pctOrDash(m.repurchase_rate)],
       ["Lost Clients", numOrDash(m.lost_clients)],
       ["Employment Status", m.coach_status || "—"],
-      ["Hire Date (performance system)", m.hire_dt || "—"],
-      ["Hire Date (directory)", coach.directory_hire_date || "—"],
+      ["Hire Date", m.hire_dt || "—"],
+      ["Roster Hire Date", coach.directory_hire_date || "—"],
       ["Termination Date", m.termination_dt || "—"],
-      ["Position (performance system)", m.job_desc || "—"],
+      ["Position", m.job_desc || "—"],
     ];
     return `
       <div class="card card-pad">
-        <div class="section-header"><span class="label-sm">KPI Breakdown</span><span class="label-xs">pilot_coach_data.json</span></div>
+        <div class="section-header"><span class="label-sm">KPI Breakdown</span></div>
         <div class="baseline-strip">
           ${rows.map(([lbl, val]) => `<div class="baseline-item"><span class="baseline-lbl">${K.escapeHtml(lbl)}</span><span class="baseline-val">${K.escapeHtml(String(val))}</span></div>`).join("")}
         </div>
@@ -186,16 +177,16 @@
   function renderNoKpiProfile(coach) {
     return `
       <div class="card card-pad">
-        <div class="section-header"><span class="label-sm">Directory Information</span></div>
+        <div class="section-header"><span class="label-sm">Coach Information</span></div>
         <div class="baseline-strip">
           <div class="baseline-item"><span class="baseline-lbl">Club</span><span class="baseline-val">${K.escapeHtml(coach.club_name || "—")}</span></div>
           <div class="baseline-item"><span class="baseline-lbl">Job Title</span><span class="baseline-val">${K.escapeHtml(coach.job_title || "—")}</span></div>
           <div class="baseline-item"><span class="baseline-lbl">Cohort</span><span class="baseline-val">${K.escapeHtml(coach.cohort || "—")}</span></div>
           <div class="baseline-item"><span class="baseline-lbl">Roster Status</span><span class="baseline-val">${K.escapeHtml(coach.roster_status || "—")}</span></div>
           <div class="baseline-item"><span class="baseline-lbl">Email</span><span class="baseline-val">${K.escapeHtml(coach.email || "—")}</span></div>
-          <div class="baseline-item"><span class="baseline-lbl">Hire Date (directory)</span><span class="baseline-val">${K.escapeHtml(coach.directory_hire_date || "—")}</span></div>
+          <div class="baseline-item"><span class="baseline-lbl">Hire Date</span><span class="baseline-val">${K.escapeHtml(coach.directory_hire_date || "—")}</span></div>
         </div>
-        <div class="empty-state" style="margin-top:14px">No KPI data available — this coach appears in the roster directory but has no matching record in pilot_coach_data.json.</div>
+        <div class="empty-state" style="margin-top:14px">No Performance Data — this coach is part of the approved pilot roster but has no performance record for this reporting period.</div>
       </div>`;
   }
 
@@ -220,7 +211,6 @@
           ${!isNoKpi ? `<span class="badge badge-${band ? band.tone : "foundation"}" style="font-size:11px;padding:5px 14px">${K.escapeHtml(scoreInfo.sub)}${band ? " · " + scoreInfo.text : ""}</span>` : ""}
         </div>
       </div>
-      ${coach.mapping_status === "needs_data" ? `<div class="section-block">${K.needsDataLegend()}</div>` : ""}
       ${isNoKpi
         ? `<div class="section-block">${renderNoKpiProfile(coach)}</div>`
         : `

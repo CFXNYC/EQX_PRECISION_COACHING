@@ -208,7 +208,6 @@
     const rankings = C.clubRankings().filter(r => r.avg_score !== null);
     const topClub = rankings[0];
     const bottomClub = rankings[rankings.length - 1];
-    const needsDataCount = C.needsDataCoaches().length;
 
     const diagCounts = { closing_issue: 0, pipeline_issue: 0, follow_up_issue: 0, low_recurring_rate: 0, process_vs_production: 0, production_vs_persistence: 0 };
     scored.forEach((c) => { diagnoseCoach(c).forEach((d) => { diagCounts[d.type] = (diagCounts[d.type] || 0) + 1; }); });
@@ -239,7 +238,6 @@
     if (weakestOrgMetric) opportunities.push(`${weakestOrgMetric.label} is the softest metric pilot-wide at ${fmtOrgActual(weakestOrgMetric)} against a target of ${weakestOrgMetric.targetLabel}.`);
     if (diagCounts.pipeline_issue) opportunities.push(`${diagCounts.pipeline_issue} of ${scored.length} scored coaches show a pipeline issue — activity well below target.`);
     if (diagCounts.closing_issue) opportunities.push(`${diagCounts.closing_issue} of ${scored.length} scored coaches show a closing issue — high activity not converting.`);
-    if (needsDataCount) opportunities.push(`${needsDataCount} coaches have performance data but no confirmed club/directory assignment yet.`);
     if (!opportunities.length) opportunities.push(`No pilot-wide KPI gaps detected against current targets.`);
 
     const actions = [];
@@ -247,7 +245,6 @@
     if (diagCounts.pipeline_issue) actions.push(`Reinforce lead generation and floor engagement standards with the ${diagCounts.pipeline_issue} coach${diagCounts.pipeline_issue === 1 ? "" : "es"} showing a pipeline issue.`);
     if (diagCounts.follow_up_issue || diagCounts.low_recurring_rate) actions.push(`Review follow-up and recurring-scheduling systems — ${diagCounts.low_recurring_rate} coach${diagCounts.low_recurring_rate === 1 ? "" : "es"} sit below the pilot's recurring-rate average.`);
     if (topClub && bottomClub && topClub.club_name !== bottomClub.club_name) actions.push(`Share ${topClub.club_name}'s coaching cadence as a model for ${bottomClub.club_name}.`);
-    if (needsDataCount) actions.push(`Confirm club and directory assignment for the ${needsDataCount} coaches currently shown as Needs Assignment.`);
     if (!actions.length) actions.push(`Continue current coaching cadence — no urgent KPI gaps detected pilot-wide.`);
 
     return { wins, opportunities, actions };
