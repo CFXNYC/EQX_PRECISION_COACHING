@@ -1,0 +1,80 @@
+/* ═══════════════════════════════════════════════════════════
+   GLOBE.CSS — Mapbox-specific styling only
+   ---------------------------------------------------------
+   Scoped the same way css/portfolio.css is scoped: everything
+   lives under #view-portfolio, nothing here leaks into the rest
+   of the dashboard. Layout rules for #globe-map deliberately
+   mirror #map's existing rules 1:1 (css/portfolio.css lines 19,
+   565) so the two containers are interchangeable — only one is
+   ever visible at a time (see activateGlobeMode() in
+   js/render-portfolio.js).
+   ═══════════════════════════════════════════════════════════ */
+
+#view-portfolio #globe-map {
+  flex: 1;
+  background: #000; /* deep black — visible during the brief window before Mapbox's own style/fog paints */
+}
+
+@media (max-width: 768px) {
+  #view-portfolio #globe-map { position: absolute; inset: 0; }
+}
+
+/* ── Mapbox attribution control — restyled, never hidden (Mapbox ToS
+   requires it stay visible; see js/globe-config.js's header note).
+   Restyled to sit quietly in the corner, matching the dashboard's
+   minimal aesthetic instead of Mapbox's default light-gray demo chrome. ── */
+#view-portfolio .mapboxgl-ctrl-attrib {
+  background: rgba(11, 14, 20, 0.55);
+  color: #b7bfcc;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+#view-portfolio .mapboxgl-ctrl-attrib a { color: #d7dbe3; }
+#view-portfolio .mapboxgl-ctrl-logo { opacity: 0.75; }
+
+/* ── Zoom / reset controls — match the existing Leaflet zoom control's
+   quiet top-left placement (css/portfolio.css's Leaflet overrides) so
+   swapping renderers doesn't relocate the dashboard's control cluster. ── */
+#view-portfolio .mapboxgl-ctrl-top-left { top: 10px; left: 10px; }
+#view-portfolio .mapboxgl-ctrl-group {
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+}
+
+/* ── Hover tooltip (mapboxgl.Popup used as a lightweight, non-interactive
+   label — see js/globe-markers.js's showHoverTooltip). Kept small and
+   quiet; the click-opened club popup (globe-popups.js) reuses the
+   existing .popup-* classes already defined in css/portfolio.css. ── */
+#view-portfolio .globe-hover-tooltip .mapboxgl-popup-content {
+  background: rgba(20, 22, 28, 0.92);
+  color: #fff;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 9px;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+#view-portfolio .globe-hover-tooltip .mapboxgl-popup-tip { display: none; }
+
+/* ── Defensive fallback notice — only reachable if globe activation
+   throws after #globe-map is already visible, which activateGlobeMode()
+   in js/render-portfolio.js does not currently allow (it returns before
+   flipping visibility on error). Kept for defense in depth. ── */
+.globe-fallback-notice {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; background: #0b0e14; color: #8892a4;
+  font-family: 'Space Grotesk', sans-serif; font-size: 13px;
+  text-align: center; padding: 24px;
+}
+
+/* ── Reduced motion — the auto-rotation and flyTo/easeTo durations are
+   already zeroed in JS (see GLOBE_RENDERER.prefersReducedMotion() and
+   every duration() call in globe-camera.js), this only covers CSS-level
+   transitions Mapbox's own stylesheet may apply (e.g. popup fade-in). ── */
+@media (prefers-reduced-motion: reduce) {
+  #view-portfolio .mapboxgl-popup { transition: none !important; animation: none !important; }
+}

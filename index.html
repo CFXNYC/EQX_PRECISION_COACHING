@@ -8,11 +8,17 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
-<!-- Club Portfolio tab (Phase 4) — Leaflet + its own scoped stylesheet -->
+<!-- Club Portfolio tab (Phase 4) — Leaflet + its own scoped stylesheet.
+     This remains the always-on fallback renderer (see js/render-portfolio.js's
+     activateGlobeMode) — kept loaded unconditionally, same as before. -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
+<!-- High-fidelity globe upgrade (feature/high-fidelity-globe) — optional,
+     only activates once js/globe-config.js has a real Mapbox token. -->
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css">
 <link rel="stylesheet" href="css/portfolio.css">
+<link rel="stylesheet" href="css/globe.css">
 </head>
 <body>
 

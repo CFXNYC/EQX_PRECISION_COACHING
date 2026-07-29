@@ -68,6 +68,7 @@
 
   <div id="main">
     <div id="map"></div>
+    <div id="globe-map" style="display:none;"></div>
 
     <div id="mobile-legend">
       <div class="legend-grid">
@@ -1584,6 +1585,13 @@
 
     buildRegionLayers();
     renderSidebar(currentFilter);
+    // Additive hook only — no-op until globe-data-adapter.js registers a
+    // listener. Lets the (optional) globe renderer rebuild its GeoJSON
+    // source whenever live data hydrates, without this file knowing
+    // anything about Mapbox.
+    if (window.PORTFOLIO_DATA && typeof window.PORTFOLIO_DATA._notifyUpdate === 'function') {
+      window.PORTFOLIO_DATA._notifyUpdate();
+    }
 
     const sv = document.querySelectorAll('.stat-val');
     if (sv[0]) sv[0].textContent = Object.keys(COORDS).length;
@@ -1757,6 +1765,24 @@
   initMapData();
   setInterval(initMapData, 300000);
 
+  // Additive-only exposure for the optional globe renderer (js/globe-data-adapter.js).
+  // Live references, not snapshots: COORDS/REGIONS/HUB_CLUBS are mutated in
+  // place by hydrateMap() above, so consumers see the same live/cached data
+  // this Leaflet map itself renders — no second copy of the club tables
+  // exists anywhere (see js/club-normalization.js's header note on that rule).
+  // Nothing in this file reads from window.PORTFOLIO_DATA; it exists purely
+  // for other, optional modules to consume.
+  window.PORTFOLIO_DATA = {
+    CLUB_IDS,
+    COORDS,
+    REGIONS,
+    HUB_CLUBS,
+    getClubDataIndex: () => _clubDataIndex,
+    getIsDark: () => isDark,
+    COACH_X_ICON,
+    COACH_X_ICON_WHITE,
+    _notifyUpdate: null, // globe-data-adapter.js overwrites this with its own listener
+  };
 
     _mapInstance = map; // captured for onShow()'s invalidateSize()
   }
@@ -1779,7 +1805,15 @@
   }
   window.addEventListener("resize", () => {
     const view = document.getElementById("view-portfolio");
-    if (view && view.classList.contains("active")) syncPortfolioHeight();
+    if (view && view.classList.contains("active")) {
+      syncPortfolioHeight();
+      // Mapbox GL JS v3 has a built-in ResizeObserver on its container
+      // (trackResize, default true) so this is belt-and-suspenders, not
+      // strictly required — but cheap, and matches the explicit
+      // invalidateSize() call syncPortfolioHeight() already does for
+      // Leaflet just above, so both renderers get the same treatment.
+      if (_globeActive && window.GLOBE_RENDERER) window.GLOBE_RENDERER.resize();
+    }
   });
 
   function onShow() {
@@ -1803,5 +1837,63 @@
     }
   }
 
-  window.PAGE_PORTFOLIO = { render, onShow };
+  // ── OPTIONAL GLOBE ACTIVATION (additive — does not alter the Leaflet
+  //    map above in any way) ───────────────────────────────────────
+  // render() above always runs first and always fully initializes the
+  // existing Leaflet map — that is the guaranteed-working fallback.
+  // If, and only if, a Mapbox token has been configured AND the
+  // globe-*.js modules loaded (both optional — see js/data.js's
+  // PIPELINE_SCRIPTS and js/globe-config.js), this swaps the *visible*
+  // map from #map (Leaflet) to #globe-map (Mapbox globe) and re-points
+  // the four click-dispatched globals (activateRegion/filterMacro/
+  // flyToClub/selectClub) at globe-backed implementations. It does not
+  // edit or remove the Leaflet-bound versions of those functions above;
+  // it only overwrites which one `window.<name>` currently points to,
+  // so every onclick="" in PORTFOLIO_HTML keeps working unchanged.
+  let _globeActive = false;
+
+  function globeModulesReady() {
+    return !!(window.GLOBE_CONFIG && window.GLOBE_CONFIG.isConfigured() &&
+      window.GLOBE_DATA && window.GLOBE_RENDERER && window.GLOBE_MARKERS && window.GLOBE_CAMERA);
+  }
+
+  function activateGlobeMode() {
+    if (_globeActive || !globeModulesReady()) return;
+    const mapEl = document.getElementById('map');
+    const globeEl = document.getElementById('globe-map');
+    if (!mapEl || !globeEl) return;
+
+    try {
+      window.GLOBE_DATA.connect();
+      window.GLOBE_RENDERER.init('globe-map');
+      window.GLOBE_MARKERS.init(window.GLOBE_RENDERER.getMap(), window.GLOBE_DATA.toGeoJSON());
+    } catch (err) {
+      console.error('[render-portfolio] Globe activation failed, staying on Leaflet map:', err);
+      return; // leave #map visible, nothing else changes
+    }
+
+    mapEl.style.display = 'none';
+    globeEl.style.display = '';
+    _globeActive = true;
+
+    // Re-point the four click-dispatched globals used throughout
+    // PORTFOLIO_HTML's onclick="" attributes. Leaflet-bound versions
+    // remain defined above (unused while globe mode is active, restored
+    // in effect if activateGlobeMode ever fails before this point).
+    window.activateRegion = (regionId, flyMap = true) => window.GLOBE_CAMERA.flyToRegion(regionId, { fly: flyMap });
+    window.filterMacro = (macro) => window.GLOBE_CAMERA.filterMacro(macro);
+    window.flyToClub = (clubName, event) => { if (event) event.stopPropagation(); window.GLOBE_CAMERA.flyToClub(clubName); };
+    window.selectClub = (name) => window.GLOBE_CAMERA.flyToClub(name);
+  }
+
+  window.PAGE_PORTFOLIO = {
+    render() {
+      render();
+      activateGlobeMode();
+    },
+    onShow() {
+      onShow();
+      if (_globeActive && window.GLOBE_RENDERER) window.GLOBE_RENDERER.resize();
+    },
+  };
 })();

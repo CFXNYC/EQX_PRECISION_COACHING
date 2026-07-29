@@ -50,7 +50,19 @@
      Leaflet + its marker-cluster plugin, and the Club Portfolio's own
      config/state/normalization modules, are loaded ahead of
      render-portfolio.js so `L`, `window.PORTFOLIO_CONFIG`, `window.STATE`,
-     and `window.CLUB_NORM` all exist by the time that module runs (Phase 4). */
+     and `window.CLUB_NORM` all exist by the time that module runs (Phase 4).
+
+     High-fidelity globe upgrade (feature/high-fidelity-globe, see
+     PRE_GLOBE_PROJECT_CONTEXT.md): Mapbox GL JS + the globe-*.js modules
+     load the same way, unconditionally — loading the library costs
+     nothing if it's never used. Leaflet stays loaded too and remains the
+     always-on renderer; render-portfolio.js's activateGlobeMode() only
+     switches the *visible* map to Mapbox once js/globe-config.js has a
+     real ACCESS_TOKEN. Order here doesn't matter for correctness (every
+     globe module only reads window.GLOBE_*, CLUB_NORM, or PORTFOLIO_DATA
+     lazily, inside function bodies, never at load time) — kept in
+     dependency-reading order for humans: config → data adapter →
+     renderer → markers → camera → popups. */
   const PIPELINE_SCRIPTS = [
     "js/calculations.js",
     "js/recommendations.js",
@@ -58,9 +70,16 @@
     "js/components.js",
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js",
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js",
+    "https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js",
     "js/portfolio-config.js",
     "js/state.js",
     "js/club-normalization.js",
+    "js/globe-config.js",
+    "js/globe-data-adapter.js",
+    "js/globe-renderer.js",
+    "js/globe-markers.js",
+    "js/globe-camera.js",
+    "js/globe-popups.js",
     "js/render-portfolio.js",
     "js/render-overview.js",
     "js/render-growth.js",
