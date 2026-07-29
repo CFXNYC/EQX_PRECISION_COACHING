@@ -26,6 +26,11 @@
     if (target) target.classList.add("active");
     document.querySelectorAll(".nav-tab").forEach(t => t.classList.toggle("active", t.dataset.view === name));
     window.scrollTo(0, 0);
+    // The Club Portfolio's Leaflet map is initialized once at boot while this
+    // tab is display:none (see styles.css ".view"), so it needs an explicit
+    // invalidateSize() the moment it actually becomes visible, or tiles
+    // render blank/mispositioned.
+    if (name === "portfolio" && window.PAGE_PORTFOLIO) window.PAGE_PORTFOLIO.onShow();
   }
 
   function showCoach(coachId) {
@@ -39,6 +44,7 @@
     window.PAGE_GROWTH.render();
     window.PAGE_BEHAVIOR.render();
     window.PAGE_COACH.render();
+    window.PAGE_PORTFOLIO.render();
     showView("overview");
     if (window.PRECISION_HIDE_LOADING) window.PRECISION_HIDE_LOADING();
   }

@@ -46,12 +46,22 @@
   const PERFORMANCE_URL = "./data/pilot_coach_data.json";
   const DIRECTORY_URL = "./data/pilot_coach_directory.json";
 
-  /* Scripts loaded, in order, only after PRECISION_DATA is ready. */
+  /* Scripts loaded, in order, only after PRECISION_DATA is ready.
+     Leaflet + its marker-cluster plugin, and the Club Portfolio's own
+     config/state/normalization modules, are loaded ahead of
+     render-portfolio.js so `L`, `window.PORTFOLIO_CONFIG`, `window.STATE`,
+     and `window.CLUB_NORM` all exist by the time that module runs (Phase 4). */
   const PIPELINE_SCRIPTS = [
     "js/calculations.js",
     "js/recommendations.js",
     "js/charts.js",
     "js/components.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js",
+    "js/portfolio-config.js",
+    "js/state.js",
+    "js/club-normalization.js",
+    "js/render-portfolio.js",
     "js/render-overview.js",
     "js/render-growth.js",
     "js/render-behavior.js",
@@ -180,7 +190,10 @@
       if (i >= paths.length) { onDone(); return; }
       const src = paths[i++];
       const s = document.createElement("script");
-      s.src = `${src}?v=${BOOT_VERSION}`;
+      // Cache-bust our own files only — an external CDN URL (Leaflet, etc.)
+      // already has its own versioned path and shouldn't have a foreign
+      // query string appended.
+      s.src = /^https?:\/\//.test(src) ? src : `${src}?v=${BOOT_VERSION}`;
       s.onload = next;
       s.onerror = () => onError(new Error(`Failed to load ${src}`));
       document.body.appendChild(s);

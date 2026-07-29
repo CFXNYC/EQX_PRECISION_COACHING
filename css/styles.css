@@ -173,9 +173,7 @@ svg { display: block; }
 .badge-up   { background: var(--green-bg); color: var(--green); }
 .badge-down { background: var(--coral-bg); color: var(--coral); }
 .badge-flat { background: #f3f3f3; color: var(--dark-gray); }
-.badge-needs-data { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(122,90,31,0.2); }
 .badge-no-kpi      { background: #f3f3f3; color: var(--mid-gray); border: 1px solid #d8d8d8; }
-.badge-matched     { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(31,78,114,0.2); }
 
 /* ═══════════════════════════════════════════════════════════
    KPI CARDS
@@ -540,20 +538,6 @@ svg { display: block; }
 .score-category-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
 .score-category-num { font-size: 28px; font-weight: 700; letter-spacing: -1px; color: var(--black); }
 .score-category-metrics { margin-top: 14px; }
-
-/* ═══════════════════════════════════════════════════════════
-   DATA LEGEND / MAPPING NOTICE
-═══════════════════════════════════════════════════════════ */
-.data-legend {
-  font-size: 11px; color: var(--dark-gray); font-family: 'DM Mono', monospace;
-  padding: 10px 14px; background: var(--amber-bg); border: 1px solid rgba(122,90,31,0.2);
-  border-radius: var(--radius-sm); margin-bottom: 14px; line-height: 1.5;
-}
-.info-banner {
-  font-size: 12px; color: var(--dark-gray); line-height: 1.6;
-  padding: 12px 16px; background: var(--blue-bg); border: 1px solid rgba(31,78,114,0.2);
-  border-left: 3px solid var(--blue); border-radius: var(--radius-sm); margin-bottom: 18px;
-}
 
 /* ═══════════════════════════════════════════════════════════
    COACH CARD — MINI THREE Ps ROW
