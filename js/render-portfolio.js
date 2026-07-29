@@ -1761,8 +1761,46 @@
     _mapInstance = map; // captured for onShow()'s invalidateSize()
   }
 
-  function onShow() {
+  // The extracted #app assumes it owns the full viewport (height:100vh).
+  // Embedded here, the dashboard's own sticky .topbar sits above it in
+  // normal document flow, so a plain 100vh leaves #app exactly one
+  // topbar-height taller than the space actually visible below the sticky
+  // bar — the page becomes scrollable by exactly that amount, and any
+  // scroll at all reveals the sticky bar overlapping the map/panel below
+  // it. Size #app to the real remaining space instead, so no extra scroll
+  // exists. Recomputed on resize too (guarded to only run while this tab
+  // is actually visible).
+  function syncPortfolioHeight() {
+    const topbarEl = document.querySelector(".topbar");
+    const appEl = document.querySelector("#view-portfolio > #app");
+    if (!topbarEl || !appEl) return;
+    appEl.style.height = (window.innerHeight - topbarEl.getBoundingClientRect().height) + "px";
     if (_mapInstance) _mapInstance.invalidateSize();
+  }
+  window.addEventListener("resize", () => {
+    const view = document.getElementById("view-portfolio");
+    if (view && view.classList.contains("active")) syncPortfolioHeight();
+  });
+
+  function onShow() {
+    syncPortfolioHeight();
+    // initPanelDrag() (extracted verbatim from MASTER_MAP_UI.html) decides
+    // once, at render()/boot time, whether this is a mobile viewport and —
+    // if so — collapses #panel to its "peek" position via an inline
+    // translateY transform. render() fires immediately at app boot for
+    // every page, before the tab is ever shown; if the page's width was
+    // even transiently <=768px at that instant, the transform gets baked
+    // in and never re-evaluated, leaving a real desktop viewport with the
+    // panel stuck off-screen. This does not change the actual mobile
+    // drag/collapse behavior at all — it only clears a stray leftover
+    // transform when the tab becomes visible on a genuinely desktop width.
+    if (window.innerWidth > 768) {
+      const panel = document.getElementById("panel");
+      if (panel && panel.style.transform) {
+        panel.style.transition = "none";
+        panel.style.transform = "";
+      }
+    }
   }
 
   window.PAGE_PORTFOLIO = { render, onShow };

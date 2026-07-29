@@ -301,6 +301,13 @@ svg { display: block; }
   background-repeat: no-repeat; background-position: right 10px center;
   cursor: pointer;
 }
+.select-wrap select optgroup {
+  font: inherit; font-family: 'DM Mono', monospace; font-weight: 700;
+  font-style: normal; color: var(--dark-gray);
+}
+.select-wrap select optgroup option {
+  font-family: inherit; font-weight: 400; color: var(--off-black);
+}
 
 .coach-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .coach-card {

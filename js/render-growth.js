@@ -16,11 +16,7 @@
   const state = { coachId: "ALL" };
 
   function coachOptionsHtml() {
-    const opts = [`<option value="ALL">All Coaches — Pilot Aggregate</option>`];
-    C.allApprovedCoaches().slice().sort((a, b) => a.display_name.localeCompare(b.display_name)).forEach((c) => {
-      opts.push(`<option value="${c.coach_id}">${K.escapeHtml(c.display_name)} — ${K.escapeHtml(c.club_name || "—")}</option>`);
-    });
-    return opts.join("");
+    return `<option value="ALL">All Coaches — Pilot Aggregate</option>${K.groupedCoachOptionsHtml(C.allApprovedCoaches())}`;
   }
 
   /* Builds a score-shaped object for either "ALL" (org aggregate, scored

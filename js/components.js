@@ -139,6 +139,34 @@
       </div>`;
   }
 
+  /* ── Grouped coach <option> list — clubs as non-selectable <optgroup>
+     headers, coaches indented beneath (native <select> behavior handles
+     the non-selectable/keyboard/scrolling requirements for free). Shared
+     by every page that offers a per-coach dropdown (Behavior, Growth) so
+     club grouping/sorting logic lives in exactly one place. Resolves each
+     coach's club through CLUB_NORM — the single club-normalization
+     source — rather than re-deriving club identity here. ── */
+  function groupedCoachOptionsHtml(coaches) {
+    const groups = new Map(); // clubKey -> { label, coaches: [] }
+    (coaches || []).forEach((c) => {
+      const norm = window.CLUB_NORM && window.CLUB_NORM.normalize(c.club_number || c.club_name);
+      const key = norm ? norm.clubId : `unmatched:${c.club_name || ""}`;
+      const label = norm ? norm.canonicalName : (c.club_name || "Unassigned");
+      if (!groups.has(key)) groups.set(key, { label, coaches: [] });
+      groups.get(key).coaches.push(c);
+    });
+    return Array.from(groups.values())
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .map((g) => {
+        const options = g.coaches.slice()
+          .sort((a, b) => a.display_name.localeCompare(b.display_name))
+          .map((c) => `<option value="${c.coach_id}">${escapeHtml(c.display_name)}</option>`)
+          .join("");
+        return `<optgroup label="${escapeHtml(g.label)}">${options}</optgroup>`;
+      })
+      .join("");
+  }
+
   /* ── Coach card (grid item) ───────────────────────────────────── */
   function miniScoreRow(coach) {
     const vals = [
@@ -181,6 +209,6 @@
 
   window.COMPONENTS = {
     icon, escapeHtml, badgeForScore, mappingBadge, overallScoreDisplay, coverageBadge,
-    kpiCard, targetBar, scoreCategoryDetail, coachCard, ICONS,
+    kpiCard, targetBar, scoreCategoryDetail, coachCard, groupedCoachOptionsHtml, ICONS,
   };
 })();
