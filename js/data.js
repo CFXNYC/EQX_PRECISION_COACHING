@@ -62,7 +62,8 @@
      globe module only reads window.GLOBE_*, CLUB_NORM, or PORTFOLIO_DATA
      lazily, inside function bodies, never at load time) — kept in
      dependency-reading order for humans: config → data adapter →
-     renderer → markers → camera → popups. */
+     renderer → regions (business hub-cluster overlay) → markers →
+     camera → popups. */
   const PIPELINE_SCRIPTS = [
     "js/calculations.js",
     "js/recommendations.js",
@@ -77,9 +78,11 @@
     "js/globe-config.js",
     "js/globe-data-adapter.js",
     "js/globe-renderer.js",
+    "js/globe-regions.js",
     "js/globe-markers.js",
     "js/globe-camera.js",
     "js/globe-popups.js",
+    "js/globe-legend.js",
     "js/render-portfolio.js",
     "js/render-overview.js",
     "js/render-growth.js",

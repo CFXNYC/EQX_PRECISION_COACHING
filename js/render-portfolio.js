@@ -72,6 +72,7 @@
 
     <div id="mobile-legend">
       <div class="legend-grid">
+        <div class="legend-item" id="mob-legend-p"><span>Precision Club</span></div>
         <div class="legend-item" id="mob-legend-hub"><span>Hub Club</span></div>
         <div class="legend-item" id="mob-legend-sat"><span>EQX Club</span></div>
         <div class="legend-item"><div class="l-ring"></div><span>Cluster Perimeter</span></div>
@@ -124,6 +125,7 @@
         <div id="legend-section">
           <div class="legend-title">Map Legend</div>
           <div class="legend-grid">
+            <div class="legend-item" id="legend-p"><span>Precision Club</span></div>
             <div class="legend-item" id="legend-hub"><span>Hub Club</span></div>
             <div class="legend-item" id="legend-sat"><span>EQX Club</span></div>
             <div class="legend-item"><div class="l-ring"></div><span>Cluster Perimeter</span></div>
@@ -851,28 +853,16 @@
         );
         marker.on('click', () => {
           const mi = (radiusM/1609.34).toFixed(1);
-          const hubCoords = COORDS[region.hub];
-          const distToHub = (!isHub && hubCoords)
-            ? (haversineM(coords, hubCoords) / 1609.34).toFixed(1)
-            : null;
-          const cd = _clubDataIndex[name] || {};
-          const hasCoachData = cd.total_coaches || cd.coach || cd.coach_plus || cd.coach_x;
-          L.popup({ maxWidth:300, closeButton:true, offset:[0, isHub?-20:-12] })
+          // Shared popup template (js/globe-popups.js's buildClubPopupHTML) —
+          // same structure/spacing/typography the Mapbox globe's club popup
+          // uses; `extra` supplies only the region-cluster context this
+          // click has in scope that the shared builder can't derive itself.
+          L.popup({ maxWidth: 280, minWidth: 220, closeButton: true, offset: [0, isHub ? -20 : -12] })
             .setLatLng(coords)
-            .setContent(`<div class="popup-inner">
-              <div class="popup-club">${name}${cd.club_id ? `<span style="font-weight:400;opacity:0.45;font-size:11px"> | ${cd.club_id}</span>` : ''}</div>
-              <div class="popup-region">${region.name.replace(/^.*? - /, '')}</div>
-              ${(cd.coach_x > 0 || cd.educator_count > 0) ? `<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">${cd.coach_x > 0 ? `<img src="${isDark ? COACH_X_ICON_WHITE : COACH_X_ICON}" style="height:14px;opacity:0.85">` : ''}${cd.educator_count > 0 ? `<span style="font-size:14px;line-height:1">🧠</span>` : ''}</div>` : ''}
-              ${isHub ? '<div class="popup-hub-badge">Hub Club</div>' : ''}
-              <div class="popup-meta">
-                Cluster: <strong>${matched.length} clubs</strong><br/>
-                Cluster radius: <strong>${mi} mi</strong><br/>
-                ${distToHub ? `Distance to <strong>${region.hub}</strong>: <strong>${distToHub} mi</strong><br/>` : ''}
-                ${cd.educator ? `Educator: <strong>${cd.educator}</strong>${cd.job_title ? ` &mdash; ${cd.job_title}` : ''}<br/>` : ''}
-                ${hasCoachData ? `Coach: <strong>${cd.coach||0}</strong> &nbsp;&middot;&nbsp; Coach<sup>+</sup>: <strong>${cd.coach_plus||0}</strong> &nbsp;&middot;&nbsp; COACH<img src="${isDark ? COACH_X_ICON_WHITE : COACH_X_ICON}" class="coachx-icon" style="height:11px;vertical-align:text-bottom;display:inline;margin:0 0 0 2px;">:<strong>${cd.coach_x||0}</strong><br/>Total Coaches: <strong>${cd.total_coaches||0}</strong><br/>` : ''}
-                ${cd.educator_count > 0 ? `Educators: <strong>${cd.educator_count}</strong> 🧠<br/>` : ''}
-              </div>
-            </div>`)
+            .setContent(window.GLOBE_POPUPS.buildClubPopupHTML(name, {
+              clusterClubCount: matched.length,
+              clusterRadiusMi: mi,
+            }))
             .openOn(map);
           activateRegion(region.id, false);
 
@@ -980,12 +970,14 @@
   let currentFilter = 'ALL';
   window.filterMacro = function(macro) {
     currentFilter = macro;
+    // Selected look (background/color/border) comes entirely from the
+    // .filter-btn.active CSS rule (css/portfolio.css) now — previously this
+    // set matching inline styles per macro color, which the globe-mode
+    // filter path (js/globe-camera.js's updateFilterButtonsUI) never
+    // mirrored, leaving a selected button with no visible background at
+    // all when the globe renderer was active (white text on white).
     document.querySelectorAll('.filter-btn').forEach(btn => {
-      const on = btn.dataset.macro === macro;
-      btn.classList.toggle('active', on);
-      btn.style.background  = on ? (macro==='ALL'?'#1a1a1a':LIVE_COLORS[macro]) : '#fff';
-      btn.style.color       = on ? '#fff' : '#999';
-      btn.style.borderColor = on ? 'transparent' : '#ddd';
+      btn.classList.toggle('active', btn.dataset.macro === macro);
     });
     renderSidebar(macro);
     if (macro !== 'ALL') {
@@ -1004,26 +996,16 @@
 
     const entry = CLUB_REGION[clubName];
     const isHub = entry ? entry.isHub : false;
-    const region = entry ? entry.region : null;
-    const hubCoords = (region && !isHub) ? COORDS[region.hub] : null;
-    const distToHub = hubCoords
-      ? (haversineM(coords, hubCoords) / 1609.34).toFixed(1)
-      : null;
 
     map.flyTo(coords, 15, { animate: true, duration: 0.8 });
-    const _flyEd = _clubDataIndex[clubName];
-    const _popupContent = `<div class="popup-inner" style="padding:10px 14px">
-        <div class="popup-club" style="font-size:12px">${clubName}${_flyEd?.club_id ? `<span style="font-weight:400;opacity:0.45;font-size:10px"> | ${_flyEd.club_id}</span>` : ''}</div>
-        ${region ? `<div class="popup-region">${region.name.replace(/^.*? - /, '')}</div>` : ''}
-        ${(_flyEd?.coach_x > 0 || _flyEd?.educator_count > 0) ? `<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px">${_flyEd?.coach_x > 0 ? `<img src="${isDark ? COACH_X_ICON_WHITE : COACH_X_ICON}" style="height:13px;opacity:0.85">` : ''}${_flyEd?.educator_count > 0 ? `<span style="font-size:13px;line-height:1">🧠</span>` : ''}</div>` : ''}
-        ${isHub ? '<div class="popup-hub-badge">Hub Club</div>' : ''}
-        ${distToHub ? `<div class="popup-meta" style="margin-top:6px">Distance to <strong>${region.hub}</strong>: <strong>${distToHub} mi</strong></div>` : ''}
-        ${(_flyEd?.educator_count > 0) ? `<div class="popup-meta" style="margin-top:4px">Educators: <strong>${_flyEd.educator_count}</strong> 🧠</div>` : ''}
-      </div>`;
+    // Shared popup template (js/globe-popups.js's buildClubPopupHTML) — see
+    // the marker-click handler above for the same reuse; no cluster-size
+    // context exists at this entry point, so `extra` is omitted and that
+    // line simply doesn't render.
     map.once('moveend', () => {
-      L.popup({ maxWidth: 240, closeButton: false, autoClose: true, closeOnClick: true })
+      L.popup({ maxWidth: 280, minWidth: 220, closeButton: true, autoClose: true, closeOnClick: true, offset: [0, isHub ? -20 : -12] })
         .setLatLng(coords)
-        .setContent(_popupContent)
+        .setContent(window.GLOBE_POPUPS.buildClubPopupHTML(clubName))
         .openOn(map);
     });
 
@@ -1345,10 +1327,12 @@
         marker.setIcon(isHub ? makeHubIcon(hex) : makeClubIcon(hex));
       });
     });
-    // Sidebar pip + active filter button
+    // Sidebar pip
     renderSidebar(currentFilter);
-    const activeBtn = document.querySelector(`.filter-btn[data-macro="${macro}"].active`);
-    if (activeBtn) { activeBtn.style.background = hex; activeBtn.style.borderColor = 'transparent'; }
+    // Selected filter button intentionally stays black/white regardless of
+    // region color (.filter-btn.active in css/portfolio.css) — a colored
+    // selected state risked a low-contrast/washed-out label for light hex
+    // values, which is exactly what this component must never do.
   };
 
   window.updateMarkerSizes = function() {
@@ -1745,8 +1729,16 @@
 
   // ── LEGEND ICONS ───────────────────────────────────────────
   function buildLegendIcons() {
+    // Legend-only swatch — the BLACK-on-white P mark (img/eqx-p-logo-black-on-white.png),
+    // never the white-on-transparent one the live map markers use (js/globe-markers.js),
+    // so it reads correctly against the legend's white/black palette. Same
+    // mix-blend-mode:multiply trick as the hub/sat swatches below: it makes an
+    // opaque white background disappear against the swatch's own white circle
+    // without needing a transparent PNG.
+    const pHTML = `<div style="width:20px;height:20px;border-radius:50%;background:#fff;border:2.5px solid #555;box-shadow:0 1px 5px rgba(0,0,0,0.22);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="img/eqx-p-logo-black-on-white.png" style="width:17px;height:17px;display:block;mix-blend-mode:multiply;"></div><span>Precision Club</span>`;
     const hubHTML = `<div style="width:20px;height:20px;border-radius:50%;background:#fff;border:2.5px solid #555;box-shadow:0 1px 5px rgba(0,0,0,0.22);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="${HUB_ICON}" style="width:17px;height:17px;display:block;mix-blend-mode:multiply;"></div><span>Hub Club</span>`;
     const satHTML = `<div style="width:14px;height:14px;border-radius:50%;background:#fff;border:1.5px solid #888;box-shadow:0 1px 3px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="${CLUB_ICON}" style="width:11px;height:11px;display:block;mix-blend-mode:multiply;"></div><span>EQX Club</span>`;
+    ['legend-p','mob-legend-p'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = pHTML; });
     ['legend-hub','mob-legend-hub'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = hubHTML; });
     ['legend-sat','mob-legend-sat'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = satHTML; });
   }
@@ -1756,8 +1748,8 @@
   map.on('zoomend moveend', updateMarkerSizes);
   map.addLayer(clusterGroup);
   renderSidebar();
-  const allBtn = document.querySelector('.filter-btn[data-macro="ALL"]');
-  if (allBtn) { allBtn.style.background='#1a1a1a'; allBtn.style.color='#fff'; allBtn.style.borderColor='transparent'; }
+  // The "All" button's selected look comes from .filter-btn.active in its
+  // static markup (PORTFOLIO_HTML) + CSS now — no inline style needed.
   initRegionColorPickers();
   loadSavedSettings();
   renderSavedPresets();
@@ -1781,6 +1773,16 @@
     getIsDark: () => isDark,
     COACH_X_ICON,
     COACH_X_ICON_WHITE,
+    // Existing production "EQX H" hub-club mark (same asset makeHubIcon()
+    // uses on the Leaflet map above) — exposed the same way COACH_X_ICON
+    // already is, so the globe renderer (js/globe-markers.js) can reuse it
+    // exactly for the H marker tier instead of a second/redrawn asset.
+    HUB_ICON,
+    // Live reference (not a snapshot) to the same macro-region color map
+    // buildRegionLayers() paints the Leaflet circles/markers with — so the
+    // globe's region overlay (js/globe-regions.js) stays visually in sync
+    // with any live color-picker change instead of hosting a second copy.
+    COLORS: LIVE_COLORS,
     _notifyUpdate: null, // globe-data-adapter.js overwrites this with its own listener
   };
 
@@ -1866,7 +1868,16 @@
     try {
       window.GLOBE_DATA.connect();
       window.GLOBE_RENDERER.init('globe-map');
+      // GLOBE_REGIONS (business hub-cluster overlay) is initialized before
+      // GLOBE_MARKERS so its fill/perimeter/centroid layers are always
+      // added — and therefore always painted — underneath every marker
+      // and cluster layer (see js/globe-regions.js's header note).
+      if (window.GLOBE_REGIONS) window.GLOBE_REGIONS.init(window.GLOBE_RENDERER.getMap());
       window.GLOBE_MARKERS.init(window.GLOBE_RENDERER.getMap(), window.GLOBE_DATA.toGeoJSON());
+      // Legend click-to-navigate (P/H flyouts) — globe-only, since the P
+      // marker tier and this interaction only exist in globe mode; the
+      // Leaflet map's legend rows stay exactly as inert as before.
+      if (window.GLOBE_LEGEND) window.GLOBE_LEGEND.init();
     } catch (err) {
       console.error('[render-portfolio] Globe activation failed, staying on Leaflet map:', err);
       return; // leave #map visible, nothing else changes

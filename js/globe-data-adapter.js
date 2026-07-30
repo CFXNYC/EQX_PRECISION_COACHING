@@ -135,6 +135,51 @@
     return data().COORDS[clubName] || null; // [lat, lng] or null
   }
 
+  function getColors() {
+    return data().COLORS || {};
+  }
+
+  // ── Canonical region geometry math — identical formulas to
+  // render-portfolio.js's haversineM/computeCentroid/computeRadius (the
+  // Leaflet map's own hub-cluster circle math), reused here rather than
+  // re-derived so the globe's region overlay (js/globe-regions.js) and
+  // the Leaflet map always agree on centroid/radius for the same region.
+  // Not read from render-portfolio.js directly because those functions
+  // are private to its render() IIFE and never exposed on window; this is
+  // the one place outside that IIFE the formulas exist, and every other
+  // globe module reads them only through GLOBE_DATA. ──
+  function haversineM(a, b) {
+    const R = 6371000, r = Math.PI / 180;
+    const dLat = (b[0] - a[0]) * r, dLng = (b[1] - a[1]) * r;
+    const x = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  }
+
+  function computeCentroid(list) {
+    if (!list.length) return null;
+    return [list.reduce((s, c) => s + c[0], 0) / list.length, list.reduce((s, c) => s + c[1], 0) / list.length];
+  }
+
+  function computeRadiusM(centroid, list) {
+    if (!list.length) return 0;
+    if (list.length === 1) return 2000;
+    return Math.max(...list.map((c) => haversineM(centroid, c))) * 1.075;
+  }
+
+  // Returns the same shape as render-portfolio.js's regionLayers[region.id]
+  // (region, matched clubs w/ coords, centroid, radiusM) so the globe's
+  // region overlay and camera fitting read one shared computation.
+  function getRegionGeometry(regionId) {
+    const region = getRegions().find((r) => r.id === regionId);
+    if (!region) return null;
+    const matched = region.clubs.map((name) => ({ name, coords: getCoords(name) })).filter((c) => c.coords);
+    const coordList = matched.map((c) => c.coords);
+    const centroid = computeCentroid(coordList);
+    if (!centroid) return null;
+    const radiusM = computeRadiusM(centroid, coordList);
+    return { region, matched, coordList, centroid, radiusM };
+  }
+
   // Mirrors the CLUB_REGION lookup built by render-portfolio.js's
   // buildRegionLayers() (Leaflet-only, not exposed) — recomputed here from
   // the same live REGIONS array so both renderers agree without either
@@ -156,7 +201,12 @@
     connect,
     getRegions,
     getCoords,
+    getColors,
     findClubRegion,
+    haversineM,
+    computeCentroid,
+    computeRadiusM,
+    getRegionGeometry,
     onUpdate,
   };
 })(window);

@@ -57,12 +57,19 @@ svg { display: block; }
   padding: 16px 36px 0;
   position: sticky; top: 0; z-index: 100;
 }
+/* Grid, not flex-direction-switching-to-column, so the logo column stays
+   pinned top-right at every breakpoint — text content wraps/shrinks inside
+   its own column instead of ever being able to push the logo out of place
+   or drop it below the title (the previous mobile override switched this
+   to a column flex layout, which stacked the logo under the title). */
 .topbar-inner {
   max-width: 1440px; margin: 0 auto;
-  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  display: grid; grid-template-columns: 1fr auto;
+  align-items: center; gap: 24px;
   padding-bottom: 14px;
 }
-.topbar-logo { flex-shrink: 0; display: flex; align-items: center; }
+.topbar-text { min-width: 0; } /* allows the title/meta to wrap/shrink instead of forcing the grid column wider */
+.topbar-logo { flex-shrink: 0; display: flex; align-items: center; justify-self: end; }
 .topbar-logo img { height: 56px; width: auto; display: block; }
 .topbar h1 {
   font-size: 14px; font-weight: 700;
@@ -455,8 +462,11 @@ svg { display: block; }
   .wrap { padding: 0 18px; }
   .topbar { padding: 12px 18px 0; }
   .topbar h1 { font-size: 12px; }
-  .topbar-inner { flex-direction: column; align-items: flex-start; gap: 8px; padding-bottom: 10px; }
-  .topbar-logo img { height: 36px; }
+  /* Stays a 2-column grid (see .topbar-inner above) — only spacing and the
+     logo's own size shrink here, so the logo never drops beneath the
+     title or gets pushed out by wrapped text on narrow viewports. */
+  .topbar-inner { gap: 10px; padding-bottom: 10px; }
+  .topbar-logo img { height: 34px; }
   .primary-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .nav-tab { padding: 9px 12px; white-space: nowrap; }
   .data-source { display: none; }

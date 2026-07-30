@@ -2,13 +2,25 @@
    GLOBE MARKERS — GeoJSON source, clustering, marker layers,
    hover/selected states, click wiring
    ---------------------------------------------------------
-   Two visual tiers, per approved direction:
+   Three visual tiers — the approved P/H/O marker hierarchy, restored
+   to match the Leaflet map's own hub/pilot treatment:
      - Precision-coaching clubs (9, exact allowlist in
-       globe-data-adapter.js): EQX P logo, primary emphasis.
-     - Every other club (~106, full existing national footprint):
-       the closest faithful equivalent of the current Leaflet
-       treatment's neutral white/steel dot — visible, not hidden,
-       not redesigned into a second branded system, just quieter.
+       globe-data-adapter.js): EQX P logo, primary emphasis. A
+       precision club that is also a hub keeps the P logo — hub
+       status never downgrades or replaces it — and is surfaced via
+       the existing "Hub Club" popup badge (js/globe-popups.js) plus
+       the region-overlay hub ring (js/globe-regions.js) when its
+       region is active, rather than a second on-marker asset.
+     - Non-pilot hub clubs: EQX H logo (the same HUB_ICON asset the
+       Leaflet map's makeHubIcon() already uses — see
+       window.PORTFOLIO_DATA.HUB_ICON in render-portfolio.js — reused
+       byte-for-byte, never redrawn).
+     - Every other club (full existing national footprint): EQX O
+       logo (img/eqx-o-logo-white.png, the same mark already used as
+       the dashboard's topbar brand image), kept visually quieter
+       than P/H so the hierarchy still reads at a glance, but always
+       a real marker — never a generic dot, even once a cluster
+       expands down to individual clubs.
 
    KNOWN LIMITATION (flag, not silently glossed over): Mapbox GL JS
    renders markers on a WebGL <canvas>, so individual globe markers
@@ -31,56 +43,180 @@
   const SOURCE_ID = "clubs";
   const CLUSTER_CIRCLE_LAYER = "clubs-cluster-circle";
   const CLUSTER_COUNT_LAYER = "clubs-cluster-count";
-  const NEUTRAL_LAYER = "clubs-neutral";
-  const PRECISION_LAYER = "clubs-precision";
-  const PRECISION_HALO_LAYER = "clubs-precision-halo";
-  const PRECISION_HOVER_LAYER = "clubs-precision-hover";
-  const PRECISION_SELECTED_LAYER = "clubs-precision-selected";
   const PRECISION_ICON_ID = "eqx-p-logo-white";
-
-  // Restrained scale bump — selected (1.2x) is deliberately close to
-  // hover (1.12x) per spec ("restrained scale... do not use aggressive
-  // pulsing"). Shared by both the neutral circle layer and the P-logo
-  // symbol layer so hover/selected feel consistent across tiers.
-  const HOVER_SELECT_MULTIPLIER = [
-    "case",
-    ["boolean", ["feature-state", "selected"], false], 1.2,
-    ["boolean", ["feature-state", "hover"], false], 1.12,
-    1,
-  ];
+  const HUB_ICON_ID = "eqx-h-logo";
+  const STANDARD_ICON_ID = "eqx-o-logo";
 
   let _map = null;
   let _hoveredId = null;
   let _selectedId = null;
 
-  // Source PNG is 3000×3000px (full brand-kit resolution) but the marker
-  // only ever displays at ~40-70px on screen. Handing Mapbox the raw
-  // 3000px texture and shrinking it via icon-size made the logo nearly
-  // invisible in live testing — a ~50-70x GPU minification made the
-  // ring/P geometry wash out almost completely (worse under this
-  // session's software-rendered WebGL, but not exclusive to it).
-  // Pre-downsampling to a real sprite resolution before addImage() fixes
-  // the legibility problem and is also lighter on GPU memory — confirmed
-  // live after this change (see the checkpoint report for the before/after).
-  const PRECISION_ICON_SPRITE_SIZE = 256;
+  // ── Marker tier config — one entry per rung of the approved P/H/O
+  // hierarchy. `match` partitions every non-cluster feature into exactly
+  // one tier (precision → hub → everything else), so no club can ever
+  // fall through to a generic dot once a cluster expands (rule: "every
+  // individual club must resolve into a P, H, or O marker"). H and O are
+  // deliberately smaller/quieter than P (sizePx, haloOpacity) — same
+  // "primary emphasis vs. quieter footprint" restraint the original
+  // neutral-dot tier used, just resolved into real logos instead of dots
+  // now that O must be legible on its own instead of a plain circle.
+  const TIERS = [
+    {
+      key: "precision",
+      iconId: PRECISION_ICON_ID,
+      // Source PNG is 3000×3000px (full brand-kit resolution) but the
+      // marker only ever displays at ~40-70px on screen. Handing Mapbox
+      // the raw 3000px texture and shrinking it via icon-size made the
+      // logo nearly invisible in live testing — a ~50-70x GPU
+      // minification made the ring/P geometry wash out almost
+      // completely. Pre-downsampling to a real sprite resolution before
+      // addImage() fixes legibility and is lighter on GPU memory.
+      spriteSize: 256,
+      match: ["==", ["get", "isPrecisionClub"], true],
+      haloLayer: "clubs-precision-halo",
+      haloColor: "#0b0e14",
+      haloOpacity: 0.45,
+      haloRadius: [2, 19, 8, 23, 14, 27],
+      symbolLayer: "clubs-precision",
+      hoverLayer: "clubs-precision-hover",
+      selectedLayer: "clubs-precision-selected",
+      // icon-size is a scale factor against the SOURCE IMAGE's native
+      // pixel dimensions, not an abstract small multiplier — confirmed
+      // live: 0.30 here rendered a ~900px marker that filled a third of
+      // the screen. Settled on ~40-56px (closer to the reference
+      // image's own marker proportions), plus a solid dark halo for
+      // "marker contrast works across land and ocean" per spec.
+      // This is also the sizing standard every other tier matches —
+      // H and O reuse this exact sizePx array so all three read at the
+      // same visual footprint at any given zoom (icon-size is computed
+      // per-tier as sizePx / that tier's own spriteSize, so an identical
+      // sizePx array yields an identical on-screen pixel size regardless
+      // of how large each source sprite is).
+      sizePx: [2, 40, 8, 48, 14, 56],
+    },
+    {
+      key: "hub",
+      iconId: HUB_ICON_ID,
+      // Native 80×80 asset (window.PORTFOLIO_DATA.HUB_ICON — the same
+      // mark render-portfolio.js's makeHubIcon() already uses) shown at
+      // well under 80px on screen, so no downsampling pass is needed —
+      // unlike the 3000px P source above.
+      spriteSize: 80,
+      match: ["all", ["==", ["get", "isPrecisionClub"], false], ["==", ["get", "isHub"], true]],
+      // No halo — HUB_ICON must render as only the O+H glyph, nothing
+      // behind it (confirmed live: the source PNG is actually a fully
+      // opaque black-on-white square, not black-on-transparent — see
+      // dematteToColor() below — so a halo here would reproduce
+      // exactly the white-box look that was removed).
+      symbolLayer: "clubs-hub",
+      hoverLayer: "clubs-hub-hover",
+      selectedLayer: "clubs-hub-selected",
+      sizePx: [2, 40, 8, 48, 14, 56], // matches precision — same visual footprint as P at every zoom
+    },
+    {
+      key: "standard",
+      iconId: STANDARD_ICON_ID,
+      // img/eqx-o-logo-white.png is 411×411px — smaller than the P
+      // source but still downsampled to a fixed sprite for the same
+      // crispness/GPU-memory reasons as the precision tier.
+      spriteSize: 256,
+      match: ["all", ["==", ["get", "isPrecisionClub"], false], ["==", ["get", "isHub"], false]],
+      haloLayer: "clubs-standard-halo",
+      haloColor: "#0b0e14",
+      haloOpacity: 0.28,
+      haloRadius: [2, 19, 8, 23, 14, 27], // matches precision's halo radius — same footprint as P
+      symbolLayer: "clubs-standard",
+      hoverLayer: "clubs-standard-hover",
+      selectedLayer: "clubs-standard-selected",
+      sizePx: [2, 40, 8, 48, 14, 56], // matches precision — same visual footprint as P at every zoom
+    },
+  ];
 
-  function addClubIcon(map) {
+  function tierFilter(tier, extra) {
+    const parts = ["all", ["!", ["has", "point_count"]], tier.match];
+    if (extra) parts.push(extra);
+    return parts;
+  }
+
+  function tierSizeExpr(tier, scale) {
+    const s = scale || 1;
+    const expr = ["interpolate", ["linear"], ["zoom"]];
+    for (let i = 0; i < tier.sizePx.length; i += 2) {
+      expr.push(tier.sizePx[i], (tier.sizePx[i + 1] / tier.spriteSize) * s);
+    }
+    return expr;
+  }
+
+  // HUB_ICON ships as a fully opaque black-glyph-on-white-square PNG, not
+  // black-on-transparent — confirmed live by sampling its pixels (every
+  // corner reads exactly rgba(255,255,255,255); 100% of pixels are fully
+  // opaque). Mapbox has no "color to alpha" primitive, so the only way to
+  // get a transparent-background H marker without redrawing the glyph is
+  // to de-matte it here: this is the standard invert of "opaque = alpha·FG
+  // + (1-alpha)·white", recovering alpha = 255 - luminance, then painting
+  // the glyph back in the given solid color (white, to match P/O) instead
+  // of the source's original black. Anti-aliased edge pixels (mid-gray in
+  // the source) come out as partially transparent, exactly as if the
+  // asset had shipped with real alpha — only the O+H shape's color and
+  // the presence of a background differ from the source; the glyph's
+  // geometry itself is untouched.
+  function dematteToColor(ctx, spriteSize, rgb) {
+    const imageData = ctx.getImageData(0, 0, spriteSize, spriteSize);
+    const d = imageData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const luminance = (d[i] + d[i + 1] + d[i + 2]) / 3;
+      d[i] = rgb[0]; d[i + 1] = rgb[1]; d[i + 2] = rgb[2];
+      d[i + 3] = 255 - luminance;
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  function drawSprite(map, iconId, image, spriteSize, postProcess) {
+    if (map.hasImage(iconId)) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = spriteSize;
+    canvas.height = spriteSize;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(image, 0, 0, spriteSize, spriteSize);
+    if (postProcess) postProcess(ctx, spriteSize);
+    map.addImage(iconId, ctx.getImageData(0, 0, spriteSize, spriteSize), { sdf: false });
+  }
+
+  // P and O are real file assets (img/eqx-*.png) — loaded via Mapbox's
+  // own loadImage, same as before.
+  function loadFileIcon(map, url, iconId, spriteSize, postProcess) {
     return new Promise((resolve, reject) => {
-      map.loadImage("img/eqx-p-logo-white-transparent.png", (err, image) => {
+      map.loadImage(url, (err, image) => {
         if (err) { reject(err); return; }
-        if (!map.hasImage(PRECISION_ICON_ID)) {
-          const canvas = document.createElement("canvas");
-          canvas.width = PRECISION_ICON_SPRITE_SIZE;
-          canvas.height = PRECISION_ICON_SPRITE_SIZE;
-          const ctx = canvas.getContext("2d");
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = "high";
-          ctx.drawImage(image, 0, 0, PRECISION_ICON_SPRITE_SIZE, PRECISION_ICON_SPRITE_SIZE);
-          map.addImage(PRECISION_ICON_ID, ctx.getImageData(0, 0, PRECISION_ICON_SPRITE_SIZE, PRECISION_ICON_SPRITE_SIZE), { sdf: false });
-        }
+        drawSprite(map, iconId, image, spriteSize, postProcess);
         resolve();
       });
     });
+  }
+
+  // H is the existing HUB_ICON base64 data URI (window.PORTFOLIO_DATA.HUB_ICON,
+  // the same asset the Leaflet map's makeHubIcon() already renders) — loaded
+  // via a plain Image element rather than map.loadImage, since Mapbox's
+  // internal image fetcher targets http(s) URLs, not data: URIs.
+  function loadDataUriIcon(map, dataUri, iconId, spriteSize, postProcess) {
+    return new Promise((resolve, reject) => {
+      if (!dataUri) { reject(new Error("[globe-markers] window.PORTFOLIO_DATA.HUB_ICON not available")); return; }
+      const img = new Image();
+      img.onload = () => { drawSprite(map, iconId, img, spriteSize, postProcess); resolve(); };
+      img.onerror = reject;
+      img.src = dataUri;
+    });
+  }
+
+  function addClubIcons(map) {
+    const precision = TIERS[0], hub = TIERS[1], standard = TIERS[2];
+    return Promise.all([
+      loadFileIcon(map, "img/eqx-p-logo-white-transparent.png", precision.iconId, precision.spriteSize),
+      loadDataUriIcon(map, window.PORTFOLIO_DATA && window.PORTFOLIO_DATA.HUB_ICON, hub.iconId, hub.spriteSize, (ctx, size) => dematteToColor(ctx, size, [255, 255, 255])),
+      loadFileIcon(map, "img/eqx-o-logo-white.png", standard.iconId, standard.spriteSize),
+    ]);
   }
 
   function addSourceAndLayers(map, geojson) {
@@ -126,104 +262,71 @@
       paint: { "text-color": "#ffffff" },
     });
 
-    // ── Non-precision clubs — quiet neutral dot, full footprint preserved ──
-    map.addLayer({
-      id: NEUTRAL_LAYER,
-      type: "circle",
-      source: SOURCE_ID,
-      filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "isPrecisionClub"], false]],
-      paint: {
-        "circle-color": "#ffffff",
-        "circle-opacity": 0.9,
-        "circle-stroke-width": ["case", ["==", ["get", "isHub"], true], 2.5, 1.5],
-        "circle-stroke-color": "#8892a4",
-        // A "zoom" expression is only valid as the direct input to a
-        // top-level "step"/"interpolate" (Mapbox GL JS rejects it if
-        // wrapped in an outer "*" — confirmed live, see commit history).
-        // So the hover/selected multiplier is applied inside each stop's
-        // *output* value instead of wrapping the whole interpolate.
-        "circle-radius": [
-          "interpolate", ["linear"], ["zoom"],
-          2, ["*", HOVER_SELECT_MULTIPLIER, ["case", ["==", ["get", "isHub"], true], 3, 2]],
-          8, ["*", HOVER_SELECT_MULTIPLIER, ["case", ["==", ["get", "isHub"], true], 7, 5]],
-        ],
-      },
-    });
-
-    // ── Precision-coaching clubs — EQX P logo, primary emphasis ──
+    // ── P / H / O marker tiers — every non-cluster club resolves into
+    // exactly one of these (TIERS' filters partition isPrecisionClub ×
+    // isHub with no gap), so nothing ever falls back to a generic dot.
     // icon-size is a LAYOUT property, and Mapbox GL JS layout properties
     // do not support feature-state expressions at all (confirmed live —
     // "feature-state data expressions are not supported with layout
-    // properties" — unlike circle-radius above, which is a PAINT
-    // property and feature-state works there). So the base layer stays
-    // a fixed size, and hover/selected scale-up is done with two thin
-    // filtered "highlight" layers on top instead (see below).
-    // icon-size is a scale factor against the SOURCE IMAGE's native pixel
-    // dimensions (eqx-p-logo-white-transparent.png is 3000×3000px), not
-    // an abstract small multiplier — confirmed live: 0.30 here rendered
-    // a ~900px marker that filled a third of the screen; a first-pass fix
-    // to ~24-36px was technically correct but confirmed live (via a
-    // deliberately oversized test render, then a size ramp-down) to be
-    // too small to read reliably against detailed satellite imagery — a
-    // real contrast problem, not just conservative styling. Settled on
-    // ~40-56px (closer to the reference image's own marker proportions),
-    // plus a solid dark halo (below) for "marker contrast works across
-    // land and ocean" per spec — the halo is the "subtle shadow or halo
-    // if needed" the spec explicitly allows. No circle-blur — dropped
-    // after it made the halo unreliable to confirm under this session's
-    // software-rendered WebGL (SwiftShader); a crisp low-opacity disc
-    // is simpler and verifies correctly.
-    const PRECISION_BASE_SIZE = ["interpolate", ["linear"], ["zoom"], 2, 40 / PRECISION_ICON_SPRITE_SIZE, 8, 48 / PRECISION_ICON_SPRITE_SIZE, 14, 56 / PRECISION_ICON_SPRITE_SIZE];
+    // properties"). So each tier's base symbol layer stays a fixed size,
+    // and hover/selected scale-up is done with two thin filtered
+    // "highlight" layers on top instead (updated via setFilter() in
+    // updateHighlightFilters()). Halo (where present) is a plain circle
+    // layer beneath the icon, not a true drop-shadow (Mapbox symbol
+    // layers have no native shadow support) — kept restrained per tier
+    // so it reads as contrast help, not a "second border". The hub tier
+    // deliberately has no halo at all — only the O+H glyph itself may
+    // render, per spec ("no white square, white box, or opaque
+    // background... only the O and H are visible").
+    TIERS.forEach((tier) => {
+      if (tier.haloLayer) {
+        map.addLayer({
+          id: tier.haloLayer,
+          type: "circle",
+          source: SOURCE_ID,
+          filter: tierFilter(tier),
+          paint: {
+            "circle-color": tier.haloColor,
+            "circle-opacity": tier.haloOpacity,
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], tier.haloRadius[0], tier.haloRadius[1], tier.haloRadius[2], tier.haloRadius[3], tier.haloRadius[4], tier.haloRadius[5]],
+          },
+        });
+      }
 
-    // Dark halo beneath the icon — a plain circle layer, not a true
-    // drop-shadow (Mapbox symbol layers have no native shadow support).
-    // Kept restrained (moderate opacity, tight radius) so it reads as
-    // contrast help, not a "second border" or a generic map-pin background.
-    map.addLayer({
-      id: PRECISION_HALO_LAYER,
-      type: "circle",
-      source: SOURCE_ID,
-      filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "isPrecisionClub"], true]],
-      paint: {
-        "circle-color": "#0b0e14",
-        "circle-opacity": 0.45,
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 19, 8, 23, 14, 27],
-      },
-    });
-
-    map.addLayer({
-      id: PRECISION_LAYER,
-      type: "symbol",
-      source: SOURCE_ID,
-      filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "isPrecisionClub"], true]],
-      layout: {
-        "icon-image": PRECISION_ICON_ID,
-        "icon-allow-overlap": true,
-        "icon-ignore-placement": true,
-        "icon-size": PRECISION_BASE_SIZE,
-      },
-    });
-
-    // Hover (~12% larger) and selected (~20% larger) — each starts with
-    // an empty filter (matches nothing) and is updated via setFilter()
-    // in updateHighlightFilters() whenever _hoveredId/_selectedId change.
-    // Selected is added last so it renders on top if a marker is both
-    // hovered and selected at once.
-    [
-      { id: PRECISION_HOVER_LAYER, scale: 1.12 },
-      { id: PRECISION_SELECTED_LAYER, scale: 1.2 },
-    ].forEach(({ id, scale }) => {
       map.addLayer({
-        id,
+        id: tier.symbolLayer,
         type: "symbol",
         source: SOURCE_ID,
-        filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "isPrecisionClub"], true], ["in", ["get", "name"], ["literal", []]]],
+        filter: tierFilter(tier),
         layout: {
-          "icon-image": PRECISION_ICON_ID,
+          "icon-image": tier.iconId,
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 2, (40 / PRECISION_ICON_SPRITE_SIZE) * scale, 8, (48 / PRECISION_ICON_SPRITE_SIZE) * scale, 14, (56 / PRECISION_ICON_SPRITE_SIZE) * scale],
+          "icon-size": tierSizeExpr(tier),
         },
+      });
+
+      // Hover (~12% larger) and selected (~20% larger) — each starts
+      // with an empty filter (matches nothing) and is updated via
+      // setFilter() in updateHighlightFilters() whenever
+      // _hoveredId/_selectedId change. Selected is added last so it
+      // renders on top if a marker is both hovered and selected at once.
+      [
+        { id: tier.hoverLayer, scale: 1.12 },
+        { id: tier.selectedLayer, scale: 1.2 },
+      ].forEach(({ id, scale }) => {
+        map.addLayer({
+          id,
+          type: "symbol",
+          source: SOURCE_ID,
+          filter: tierFilter(tier, ["in", ["get", "name"], ["literal", []]]),
+          layout: {
+            "icon-image": tier.iconId,
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
+            "icon-size": tierSizeExpr(tier, scale),
+          },
+        });
       });
     });
   }
@@ -231,12 +334,14 @@
   function updateHighlightFilters(map) {
     const hoverNames = _hoveredId != null ? [_hoveredId] : [];
     const selectedNames = _selectedId != null ? [_selectedId] : [];
-    map.setFilter(PRECISION_HOVER_LAYER, ["all", ["!", ["has", "point_count"]], ["==", ["get", "isPrecisionClub"], true], ["in", ["get", "name"], ["literal", hoverNames]]]);
-    map.setFilter(PRECISION_SELECTED_LAYER, ["all", ["!", ["has", "point_count"]], ["==", ["get", "isPrecisionClub"], true], ["in", ["get", "name"], ["literal", selectedNames]]]);
+    TIERS.forEach((tier) => {
+      map.setFilter(tier.hoverLayer, tierFilter(tier, ["in", ["get", "name"], ["literal", hoverNames]]));
+      map.setFilter(tier.selectedLayer, tierFilter(tier, ["in", ["get", "name"], ["literal", selectedNames]]));
+    });
   }
 
   function wireHoverAndSelection(map) {
-    [NEUTRAL_LAYER, PRECISION_LAYER].forEach((layerId) => {
+    TIERS.map((tier) => tier.symbolLayer).forEach((layerId) => {
       map.on("mouseenter", layerId, (e) => {
         map.getCanvas().style.cursor = "pointer";
         const f = e.features && e.features[0];
@@ -264,13 +369,52 @@
     updateHighlightFilters(map);
   }
 
+  // One click must fully resolve a cluster — not just step to its
+  // immediate child level. getClusterExpansionZoom() alone (the previous
+  // implementation) only zooms to where THIS cluster first splits, which
+  // for a supercluster can still be into smaller sub-clusters, forcing
+  // repeated clicks to actually reach individual clubs. Instead, pull
+  // every leaf (actual club point, recursively, never a sub-cluster) this
+  // cluster contains via getClusterLeaves() and fitBounds() around all of
+  // them in one deterministic transition — the underlying clubs are
+  // guaranteed visible after the single completed transition regardless
+  // of how many supercluster levels separated them from this click.
   function wireClusterClicks(map) {
     map.on("click", CLUSTER_CIRCLE_LAYER, (e) => {
       const features = map.queryRenderedFeatures(e.point, { layers: [CLUSTER_CIRCLE_LAYER] });
-      const clusterId = features[0].properties.cluster_id;
-      map.getSource(SOURCE_ID).getClusterExpansionZoom(clusterId, (err, zoom) => {
-        if (err) return;
-        map.easeTo({ center: features[0].geometry.coordinates, zoom, duration: root.GLOBE_RENDERER.prefersReducedMotion() ? 0 : 700 });
+      const cluster = features[0];
+      const clusterId = cluster.properties.cluster_id;
+      const pointCount = cluster.properties.point_count || 0;
+      const source = map.getSource(SOURCE_ID);
+
+      root.GLOBE_RENDERER.pauseRotation(); // matches every other programmatic camera move — see globe-camera.js
+
+      source.getClusterLeaves(clusterId, Math.max(pointCount, 1), 0, (err, leaves) => {
+        const duration = root.GLOBE_RENDERER.prefersReducedMotion() ? 0 : 800;
+        if (err || !leaves || !leaves.length) {
+          // Fallback: still resolve on one click via the immediate
+          // expansion zoom, rather than doing nothing.
+          source.getClusterExpansionZoom(clusterId, (zErr, zoom) => {
+            if (zErr) return;
+            map.easeTo({ center: cluster.geometry.coordinates, zoom, duration });
+          });
+          return;
+        }
+
+        let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+        leaves.forEach((leaf) => {
+          const [lng, lat] = leaf.geometry.coordinates;
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
+          if (lng < minLng) minLng = lng;
+          if (lng > maxLng) maxLng = lng;
+        });
+
+        if (leaves.length === 1) {
+          map.easeTo({ center: [minLng, minLat], zoom: 14, duration });
+        } else {
+          map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 90, duration, maxZoom: 15 });
+        }
       });
     });
     map.on("mouseenter", CLUSTER_CIRCLE_LAYER, () => { map.getCanvas().style.cursor = "pointer"; });
@@ -278,7 +422,7 @@
   }
 
   function wireMarkerClicks(map) {
-    [NEUTRAL_LAYER, PRECISION_LAYER].forEach((layerId) => {
+    TIERS.map((tier) => tier.symbolLayer).forEach((layerId) => {
       map.on("click", layerId, (e) => {
         const f = e.features && e.features[0];
         if (!f) return;
@@ -319,9 +463,9 @@
       if (root.GLOBE_DATA) root.GLOBE_DATA.onUpdate(updateSource);
     };
     if (map.isStyleLoaded()) {
-      addClubIcon(map).then(mount);
+      addClubIcons(map).then(mount);
     } else {
-      map.once("style.load", () => { addClubIcon(map).then(mount); });
+      map.once("style.load", () => { addClubIcons(map).then(mount); });
     }
   }
 
