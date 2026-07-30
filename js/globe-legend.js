@@ -28,9 +28,16 @@
   }
 
   // Every list is built from GLOBE_DATA.toGeoJSON() — the same source of
-  // truth the map's own P/H/O marker layers filter against (js/globe-markers.js),
-  // so a club always appears in the same tier's list as the marker it
-  // actually renders on the map.
+  // truth the map's own P/H/O marker layers filter against
+  // (js/globe-markers.js). The Precision Coaching list is the one
+  // exception: it reads isPilotClub (the approved 10-club roster, resolved
+  // by club ID via CLUB_NORM — same source the popup banner uses), not
+  // isPrecisionClub (the separate 9-entry P-marker allowlist in
+  // globe-data-adapter.js, which still drives which clubs get the P glyph
+  // on the map itself — untouched here). So a pilot club missing from the
+  // P-marker allowlist still surfaces correctly in this list even though
+  // its on-map marker doesn't (yet) match — a known, separate discrepancy,
+  // not something this list should also get wrong.
   function clubsWhere(predicate) {
     if (!root.GLOBE_DATA) return [];
     const fc = root.GLOBE_DATA.toGeoJSON();
@@ -40,9 +47,9 @@
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  const getPrecisionClubs = () => clubsWhere((p) => p.isPrecisionClub);
+  const getPrecisionClubs = () => clubsWhere((p) => p.isPilotClub);
   const getHubClubs = () => clubsWhere((p) => p.isHub);
-  const getStandardClubs = () => clubsWhere((p) => !p.isPrecisionClub && !p.isHub);
+  const getStandardClubs = () => clubsWhere((p) => !p.isPilotClub && !p.isHub);
 
   function closeFlyout() {
     if (_flyout) { _flyout.remove(); _flyout = null; }

@@ -45,6 +45,17 @@
     const found = root.GLOBE_DATA.findClubRegion(clubName);
     const region = found ? found.region : null;
     const isHub = found ? found.isHub : false;
+    // Pilot status resolved by club ID (via CLUB_NORM's alias table), never
+    // by display-name string matching — same approved 10-club roster used
+    // everywhere else pilot status is checked (STATE.setSelectedClub in
+    // globe-camera.js/render-portfolio.js). Deliberately NOT the separate
+    // 9-entry PRECISION_COACHING_CLUB_IDS allowlist in globe-data-adapter.js
+    // (that one drives the P-marker/legend and is out of scope here).
+    const norm = root.CLUB_NORM ? root.CLUB_NORM.normalize(clubName) : null;
+    const isPilot = !!(norm && norm.isPilotClub);
+    // Pilot takes precedence over hub — a pilot+hub club (e.g. Sports Club
+    // LA) shows one banner, never both stacked.
+    const bannerText = isPilot ? "Pilot Club" : (isHub ? "Hub Club" : null);
     const isDark = pd.getIsDark();
     const coachXIcon = isDark ? pd.COACH_X_ICON_WHITE : pd.COACH_X_ICON;
 
@@ -65,7 +76,7 @@
     // different component instead of the same one with less to show.
     const statusBandInner =
       (hasIconRow ? `<div class="popup-icon-row">${cd.coach_x > 0 ? `<img src="${coachXIcon}" class="popup-coachx-icon">` : ""}${cd.educator_count > 0 ? `<span class="popup-emoji">\u{1F9E0}</span>` : ""}</div>` : "") +
-      (isHub ? '<div class="popup-hub-badge">Hub Club</div>' : "");
+      (bannerText ? `<div class="popup-hub-badge">${bannerText}</div>` : "");
 
     // KPI row and total-count row are each their OWN always-rendered row
     // (reserved min-height in CSS), not folded into the same variable-
@@ -83,7 +94,12 @@
     // Trailing, genuinely variable context — length differs club to club,
     // but it only ever affects the card's total height, never the
     // position of anything above it (title/region/band/KPI/total are all
-    // already fixed by the time this renders).
+    // already fixed by the time this renders). The wrapper itself always
+    // renders (below), even with zero lines, so a club with no
+    // distance/educator/cluster context still reserves the same one-line
+    // minimum a populated card would — same fixed-height-band treatment
+    // as .popup-status-band, just via CSS min-height since this content,
+    // unlike the status band, may legitimately grow past one line.
     const extraLines = [];
     if (extra.clusterClubCount != null) extraLines.push(`Cluster: <strong>${extra.clusterClubCount} clubs</strong>`);
     if (extra.clusterRadiusMi != null) extraLines.push(`Cluster radius: <strong>${extra.clusterRadiusMi} mi</strong>`);
@@ -97,7 +113,7 @@
       <div class="popup-status-band">${statusBandInner}</div>
       <div class="popup-kpi-row">${kpiRowHtml}</div>
       <div class="popup-total-row">${totalRowHtml}</div>
-      ${extraLines.length ? `<div class="popup-meta">${extraLines.join("<br/>")}</div>` : ""}
+      <div class="popup-meta">${extraLines.join("<br/>")}</div>
     </div>`;
   }
 
