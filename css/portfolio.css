@@ -235,7 +235,7 @@
 
 .leaflet-popup-content-wrapper {
   background: #fff !important; color: #1a1a1a !important;
-  border-radius: 2px !important; border: 1px solid #e0e0e0 !important;
+  border-radius: 8px !important; border: 1px solid #e0e0e0 !important;
   box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important; padding: 0 !important;
 }
 .leaflet-popup-content { margin: 0 !important; color: #1a1a1a !important; }
@@ -263,12 +263,19 @@
    regardless of whether this club has neither/one/both. A min-height
    alone would still let a two-line band push the rows below it down for
    some clubs and not others. */
-.popup-status-band { height: 44px; margin: 8px 0; overflow: hidden; }
+/* Full-bleed to the card's actual edges (negative margin cancels
+   .popup-inner's 14px/16px padding), not just inset like every other
+   row — matches the approved reference card, where the HUB CLUB band
+   runs edge-to-edge instead of sitting as a centered chip. The
+   icon-row above stays visually centered on the same axis either way
+   (centering within a wider, symmetric container doesn't move the
+   midpoint), so widening this one row doesn't shift it. */
+.popup-status-band { height: 44px; margin: 8px -16px; width: calc(100% + 32px); overflow: hidden; }
 .popup-icon-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 6px; }
 .popup-coachx-icon { height: 13px; opacity: 0.85; }
 .popup-coachx-inline { height: 11px; vertical-align: text-bottom; display: inline; margin: 0 0 0 2px; }
 .popup-emoji { font-size: 13px; line-height: 1; }
-.popup-hub-badge { display: block; text-align: center; padding: 2px 8px; background: #1a1a1a; color: #fff; font-size: 7.5px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; border-radius: 1px; }
+.popup-hub-badge { display: block; text-align: center; padding: 2px 8px; background: #1a1a1a; color: #fff; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; }
 /* KPI row and total-count row are always-rendered, independently
    reserved rows (blank — never fabricated "0" values — when a club has
    no coach record at all) so their vertical position never depends on
@@ -277,7 +284,13 @@
 .popup-kpi-row { font-size: 10px; color: #999; line-height: 1.9; margin-top: 6px; text-align: center; min-height: 1.9em; }
 .popup-total-row { font-size: 10px; color: #999; line-height: 1.9; text-align: center; min-height: 1.9em; }
 .popup-kpi-row strong, .popup-total-row strong { color: #1a1a1a; }
-.popup-meta { font-size: 10px; color: #999; line-height: 1.9; margin-top: 6px; }
+/* Always-rendered wrapper (js/globe-popups.js), even with zero lines —
+   min-height (not a fixed height, unlike .popup-status-band) reserves a
+   one-line minimum so a club with no distance/educator/cluster context
+   doesn't collapse shorter than a populated card, while genuinely
+   multi-line content (e.g. distance + educator together) still grows
+   past the minimum instead of being clipped. */
+.popup-meta { font-size: 10px; color: #999; line-height: 1.9; margin-top: 6px; min-height: 1.9em; }
 .popup-meta strong { color: #1a1a1a; }
 
 /* Mapbox club-popup chrome — matches .leaflet-popup-* above so the same
@@ -286,7 +299,7 @@
    in css/globe.css, which must keep its own compact dark treatment. */
 #view-portfolio .mapboxgl-popup:not(.globe-hover-tooltip) .mapboxgl-popup-content {
   background: #fff; color: #1a1a1a;
-  border-radius: 2px; border: 1px solid #e0e0e0;
+  border-radius: 8px; border: 1px solid #e0e0e0;
   box-shadow: 0 8px 32px rgba(0,0,0,0.15); padding: 0;
 }
 #view-portfolio .mapboxgl-popup:not(.globe-hover-tooltip) .mapboxgl-popup-close-button {
