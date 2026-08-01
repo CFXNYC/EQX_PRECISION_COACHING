@@ -48,9 +48,31 @@
        state/normalization wiring Phase 4 does; connecting that selection
        to filter Overview/Growth/Behavior/Coach is Phase 6, not this file.
 
-   Everything else — CLUB_IDS, COORDS, REGIONS, region/cluster/popup/
+   Everything else — COORDS, REGIONS, region/cluster/popup/
    search/dark-mode/style-panel/mobile-bottom-sheet logic — is the
    original source, unchanged in behavior.
+
+   CLUB MAP DATA INTEGRATION (data/club_map_data.json, approved Strategy
+   C — see CLUB_PORTFOLIO_CURRENT_STATE_CONTROL_AUDIT.md and the
+   completion report for this change):
+     - COORDS / HUB_CLUBS / REGIONS / _clubDataIndex are still the exact
+       same mutable containers hydrateMap() has always mutated in place —
+       only WHERE they're populated FROM changed. buildStructureFromClubMapData()
+       replaces the old fetchLiveData()/transformApiData() pair, reading
+       window.CLUB_MAP_DATA (js/club-map-data.js) instead of the live
+       Power Automate feed.
+     - The hardcoded CLUB_IDS name→ID table and the hardcoded COORDS/
+       REGIONS fallback data are removed — club_id, coordinates, region,
+       and market now come from the JSON exclusively. REGIONS_STATIC
+       (unchanged in content) is kept ONLY as the temporary compatibility
+       layer for per-market hub-label/narrative/strategy/density text the
+       JSON does not yet carry (requirement 5/17) — it no longer defines
+       which clubs exist or where they render.
+     - The Power Automate feed itself is no longer fetched from this file
+       at all; js/club-map-data.js owns the one remaining call to it,
+       solely to enrich matching JSON records with is_hub/hub_club
+       metadata (Strategy C). It can never overwrite a JSON-controlled
+       field and its failure never blocks this map from rendering.
 ═══════════════════════════════════════════════════════════ */
 
 (function () {
@@ -93,9 +115,9 @@
       </div>
 
       <div id="stats-bar">
-        <div class="stat-cell"><div class="stat-val">115</div><div class="stat-lbl">Clubs</div></div>
-        <div class="stat-cell"><div class="stat-val">29</div><div class="stat-lbl">Dev. Hubs</div></div>
-        <div class="stat-cell"><div class="stat-val">5</div><div class="stat-lbl">Macro</div></div>
+        <div class="stat-cell"><div class="stat-val">—</div><div class="stat-lbl">Clubs</div></div>
+        <div class="stat-cell"><div class="stat-val">—</div><div class="stat-lbl">Dev. Hubs</div></div>
+        <div class="stat-cell"><div class="stat-val">—</div><div class="stat-lbl">Macro</div></div>
       </div>
 
       <div id="filter-bar">
@@ -238,169 +260,22 @@
     const PORTFOLIO_ROOT = container; // dark-mode toggle target (see header note)
 
   // ── API DATA LAYER CONFIG ──────────────────────────────────
-  const DATA_URL = window.PORTFOLIO_CONFIG.DATA_URL; // isolated per approved Phase 2/3 security decision — see js/portfolio-config.js
+  // The Power Automate feed itself is no longer read from this file —
+  // js/club-map-data.js owns the one remaining call to it (hub-metadata
+  // enrichment only, Strategy C). window.PORTFOLIO_CONFIG.DATA_URL is
+  // still loaded ahead of this file in the pipeline for that module to use.
   let _lastDataHash = null;
   let _clubDataIndex = {};  // clubName → coach/educator row data
 
-  // ── CLUB ID LOOKUP (not in API — keyed to API club_name) ───
-  const CLUB_IDS = {
-    // NYC — Downtown / Midtown / Brooklyn
-    'Flatiron':                    '102',
-    'West 92nd Street':            '103',
-    'East 85th Street':            '104',
-    'East 63rd Street':            '105',
-    'East 54th Street':            '106',
-    'West 50th Street':            '107',
-    'East 43rd Street':            '108',
-    'East 44th Street':            '109',
-    'Wall Street':                 '110',
-    'Tribeca':                     '111',
-    'Greenwich Avenue':            '112',
-    'Columbus Circle':             '113',
-    'SoHo':                        '114',
-    'SOHO':                        '114',
-    'Park Avenue':                 '115',
-    'High Line':                   '116',
-    'East 74th Street':            '117',
-    'West 76th Street':            '121',
-    'South Gulch':                 '121',
-    'Orchard Street':              '122',
-    'Orchard':                     '122',
-    'Printing House':              '124',
-    'Rockefeller Center':          '126',
-    'Bryant Park':                 '127',
-    'Brookfield Place':            '128',
-    'Brookfield':                  '128',
-    'East 92nd Street':            '129',
-    'Brooklyn Heights':            '130',
-    'SCNY':                        '131',
-    'Sports Club NY':              '131',
-    'East 61st Street':            '132',
-    'East 53rd Street':            '133',
-    'DUMBO':                       '134',
-    'Dumbo':                       '134',
-    'Bond Street':                 '135',
-    'Gramercy':                    '136',
-    'Williamsburg':                '137',
-    'Hudson Yards':                '138',
-    'E Madison Avenue':            '139',
-    'NoMad':                       '160',
-    'Domino':                      '161',
-    'Domino Sugar':                '161',
-    'Hudson Square':               '162',
-    // NORTHEAST — Westchester / CT / NJ / LI
-    'Scarsdale':                   '140',
-    'Darien':                      '141',
-    'Woodbury':                    '142',
-    'Roslyn':                      '143',
-    'Mamaroneck':                  '144',
-    'Great Neck':                  '145',
-    'Greenwich + E Club CT':       '148',
-    'Greenwich CT':                '148',
-    'Armonk':                      '149',
-    'Summit':                      '150',
-    'Paramus':                     '151',
-    'Southport':                   '155',
-    // BOSTON
-    'Dartmouth Street':            '201',
-    'Franklin Street':             '202',
-    'Chestnut Hill':               '203',
-    'SCBO':                        '204',
-    'Sports Club Boston':          '204',
-    'Seaport':                     '206',
-    // PHILLY
-    'Rittenhouse':                 '240',
-    // DC / DMV
-    'Tysons Corner':               '251',
-    'Bethesda':                    '252',
-    'Sports Club DC':              '253',
-    'Scott Circle DC':             '253',
-    'Anthem Row':                  '254',
-    'Wisconsin Ave':               '256',
-    'Wisconsin Avenue':            '256',
-    // SOUTH FLORIDA
-    'South Beach':                 '301',
-    'Miami Beach':                 '301',
-    'Coral Gables':                '302',
-    'Aventura':                    '303',
-    'Brickell':                    '304',
-    'Brickell Heights':            '305',
-    'West Palm Beach':             '308',
-    // CHICAGO
-    'Lincoln Park':                '401',
-    'Gold Coast':                  '402',
-    'The Loop':                    '404',
-    'Lincoln Common':              '405',
-    'Fulton Market':               '406',
-    // MICHIGAN
-    'Bloomfield Hills':            '420',
-    // TEXAS
-    'Highland Park':               '451',
-    'Highland Park TX':            '451',
-    'River Oaks':                  '454',
-    'Plano':                       '455',
-    'Plano TX':                    '455',
-    'Austin':                      '456',
-    'Austin TX':                   '456',
-    // SOCAL
-    'Pasadena':                    '701',
-    'West Hollywood':              '702',
-    'Santa Monica':                '703',
-    'Westwood':                    '704',
-    'Palos Verdes':                '705',
-    'Woodland Hills':              '707',
-    'South Bay':                   '708',
-    'Studio City':                 '709',
-    'Marina del Rey':              '711',
-    'Beverly Hills':               '712',
-    'SCLA':                        '713',
-    'Sports Club LA':              '713',
-    'Encino':                      '714',
-    'Downtown LA':                 '715',
-    'Westlake Village':            '716',
-    'Hollywood':                   '717',
-    'Glendale':                    '718',
-    'Century City':                '750',
-    'Miracle Mile':                '751',
-    'Culver City':                 '752',
-    'Santa Monica East':           '753',
-    // NORCAL
-    'Berkeley':                    '719',
-    'Pine Street':                 '720',
-    'San Mateo':                   '721',
-    'Palo Alto':                   '722',
-    'Union Street':                '723',
-    'SCSF + E Club':               '724',
-    'Market Street':               '724',
-    'San Ramon':                   '725',
-    'Van Mission':                 '726',
-    'Beale Street':                '727',
-    // OC + SAN DIEGO
-    'Newport Beach':               '730',
-    'Sports Club Orange County':   '732',
-    'Sports Club OC':              '732',
-    'Huntington Beach':            '733',
-    'La Costa':                    '734',
-    'Downtown San Diego':          '735',
-    // PACIFIC NORTHWEST
-    'Rainier Square':              '790',
-    // CANADA
-    'Bay Street':                  '852',
-    '199 Bay Street':              '852',
-    'Yorkville':                   '854',
-    'Equinox Yorkville':           '854',
-    'West Georgia Street':         '860',
-    'W Georgia':                   '860',
-    // LONDON
-    'Kensington':                  '871',
-    'E St. James\'s':              '873',
-    'East Saint James':            '873',
-    'Bishopsgate':                 '875',
-  };
+  // ── CLUB ID LOOKUP — REMOVED ────────────────────────────────
+  // The ~150-entry hardcoded name→ID table formerly here (CLUB_IDS) is
+  // gone. club_id now comes directly from data/club_map_data.json's own
+  // club_id field on every record (see buildStructureFromClubMapData()
+  // below) — never derived from a club's display name.
 
   // ── DESIGN TOKENS ──────────────────────────────────────────
   // ── DESIGNATED HUB CLUBS ───────────────────────────────────
-  const HUB_CLUBS = new Set(); // populated from API
+  const HUB_CLUBS = new Set(); // populated from data/club_map_data.json (+ Power Automate hub enrichment)
 
   const COLORS = {
     WEST:      '#6F8F95',
@@ -418,134 +293,24 @@
 
   // ── COORDINATES — populated from API ──────────────────────
   const COORDS = {
-    // PLACEHOLDER — overwritten by API on first load. Kept non-empty so
-    // Leaflet has a valid bounds reference before the first fetch resolves.
+    // PLACEHOLDER — overwritten by buildStructureFromClubMapData()/hydrateMap()
+    // on first load. Kept non-empty so Leaflet has a valid bounds reference
+    // before data/club_map_data.json finishes loading. The ~100-entry
+    // hardcoded lat/lng fallback table formerly here is removed —
+    // coordinates now come exclusively from the JSON.
     '_init': [38.5, -95.0],
-    // BOSTON
-    'Dartmouth Street':   [42.3489, -71.0803],
-    'Franklin Street':    [42.3577, -71.0546],
-    'Chestnut Hill':      [42.3282, -71.1655],
-    'Sports Club Boston': [42.3524, -71.0637],
-    'Seaport':            [42.3528, -71.0441],
-    // NORCAL
-    'Berkeley':           [37.8648, -122.2688],
-    'Pine Street':        [37.7913, -122.4008],
-    'San Mateo':          [37.5625, -122.3232],
-    'Palo Alto':          [37.4253, -122.1476],
-    'Union Street':       [37.7977, -122.4335],
-    'Market Street':      [37.7869, -122.4064],
-    'San Ramon':          [37.7661, -121.9576],
-    'Van Mission':     [37.7726, -122.4194],
-    'Beale Street':       [37.7921, -122.3967],
-    // SOCAL
-    'Pasadena':           [34.1458, -118.1484],
-    'West Hollywood':     [34.0904, -118.3868],
-    'Santa Monica':       [34.0194, -118.4929],
-    'Westwood':           [34.0598, -118.4462],
-    'Palos Verdes':       [33.7813, -118.3649],
-    'Woodland Hills':     [34.1834, -118.5941],
-    'South Bay':          [33.8876, -118.3530],
-    'Studio City':        [34.1511, -118.4078],
-    'Pacific Palisades':  [34.0455, -118.5539],
-    'Marina del Rey':     [33.9875, -118.4386],
-    'Beverly Hills':      [34.0706, -118.4017],
-    'Sports Club LA':     [34.0367, -118.4469],
-    'Encino':             [34.1537, -118.5102],
-    'Downtown LA':        [34.0523, -118.2586],
-    'Westlake Village':   [34.1555, -118.8368],
-    'Hollywood':          [34.0977, -118.3267],
-    'Glendale':           [34.1519, -118.2589],
-    'Newport Beach':      [33.6766, -117.8619],
-    'Sports Club OC':     [33.6684, -117.8565],
-    'Huntington Beach':   [33.7183, -118.0048],
-    'La Costa':           [33.1006, -117.2637],
-    'Downtown San Diego': [32.7166, -117.1621],
-    'Century City':       [34.0578, -118.4138],
-    'Miracle Mile':       [34.0626, -118.3617],
-    'Culver City':        [34.0239, -118.3984],
-    'Santa Monica East':  [34.0133, -118.4927],
-    'Burbank':            [34.1701, -118.3226],
-    // NYC
-    'Flatiron':           [40.7354, -73.9908],
-    'West 92nd Street':   [40.7956, -73.9728],
-    'East 85th Street':   [40.7773, -73.9552],
-    'East 63rd Street':   [40.7640, -73.9676],
-    'East 54th Street':   [40.7559, -73.9669],
-    'West 50th Street':   [40.7631, -73.9842],
-    'East 43rd Street':   [40.7525, -73.9783],
-    'East 44th Street':   [40.7526, -73.9766],
-    'Wall Street':        [40.7071, -74.0110],
-    'Tribeca':            [40.7143, -74.0097],
-    'Greenwich Avenue':   [40.7353, -74.0027],
-    'Columbus':           [40.7682, -73.9826],
-    'Park Avenue':        [40.7557, -73.9714],
-    'SOHO':               [40.7237, -74.0024],
-    'Orchard':            [40.7178, -73.9887],
-    'Printing House':     [40.7268, -74.0068],
-    'Brookfield':         [40.7127, -74.0154],
-    'Brooklyn Heights':   [40.6960, -73.9952],
-    'Williamsburg':       [40.7135, -73.9606],
-    'Domino Sugar':       [40.7115, -73.9650],
-    'Dumbo':              [40.7033, -73.9880],
-    'Sports Club NY':     [40.7854, -73.9789],
-    'High Line':          [40.7481, -74.0048],
-    // TEXAS
-    'Austin TX':          [30.2672, -97.7431],
-    'Highland Park TX':   [32.8301, -96.7996],
-    'Plano TX':           [33.0198, -96.6989],
-    'River Oaks':         [29.7528, -95.4169],
-    // SOUTH FLORIDA
-    'Miami Beach':        [25.7907, -80.1300],
-    'Coral Gables':       [25.7215, -80.2684],
-    'Aventura':           [25.9562, -80.1390],
-    'Brickell':           [25.7617, -80.1918],
-    'Brickell Heights':   [25.7580, -80.1943],
-    'West Palm Beach':    [26.7153, -80.0534],
-    // DC / DMV
-    'Tysons Corner':      [38.9207, -77.2311],
-    'Bethesda':           [38.9848, -77.0947],
-    'Scott Circle DC':    [38.9069, -77.0302],
-    'Anthem Row':         [38.9075, -77.0265],
-    'Wisconsin Avenue':   [38.9348, -77.0720],
-    // LONG ISLAND
-    'Woodbury':           [40.8140, -73.4667],
-    'Roslyn':             [40.7990, -73.6477],
-    'Great Neck':         [40.7904, -73.7282],
-    // NJ
-    'Summit':             [40.7157, -74.3601],
-    'Paramus':            [40.9443, -74.0704],
-    // WESTCHESTER
-    'Scarsdale':          [40.9868, -73.7968],
-    'Mamaroneck':         [40.9493, -73.7324],
-    'Armonk':             [41.1290, -73.7204],
-    // CT
-    'Darien':             [41.0735, -73.4688],
-    'Greenwich CT':       [41.0534, -73.6285],
-    // PHILLY
-    'Rittenhouse':        [39.9496, -75.1717],
-    // CHICAGO
-    'Lincoln Park':       [41.9217, -87.6508],
-    'Gold Coast':         [41.9038, -87.6291],
-    'The Loop':           [41.8827, -87.6278],
-    'Lincoln Common':     [41.9168, -87.6502],
-    'Fulton Market':      [41.8866, -87.6487],
-    // MICHIGAN
-    'Bloomfield Hills':   [42.5837, -83.2455],
-    // TORONTO
-    '199 Bay Street':     [43.6482, -79.3776],
-    'Equinox Yorkville':  [43.6690, -79.3945],
-    // LONDON
-    'Bishopsgate':        [51.5181, -0.0814],
-    'East Saint James':   [51.5062, -0.1347],
-    'Kensington':         [51.4994, -0.1873],
-    // VANCOUVER
-    'W Georgia':          [49.2845, -123.1208],
-    // SEATTLE
-    'Rainier Square':     [47.6088, -122.3354],
   };
 
-  // ── REGIONS — Region_Mapping_Table_V2 ─────────────────────
-  const REGIONS = [
+  // ── REGIONS_STATIC — Region_Mapping_Table_V2 editorial snapshot ──
+  // No longer the source of which clubs exist or where they render (that's
+  // data/club_map_data.json exclusively, via buildStructureFromClubMapData()
+  // below). Kept as a temporary compatibility layer purely for per-market
+  // narrative/strategy/density/bases/dist text and a hub-label fallback
+  // the JSON doesn't yet carry — matched by market NAME only (requirement
+  // 5/17). A market whose name doesn't appear here (e.g. a brand-new
+  // market, or "Unassigned Market") simply gets no narrative/hub-label
+  // fallback, never a fabricated one.
+  const REGIONS_STATIC = [
     { id:'W01', macro:'WEST', name:'NorCal - SF', hub:'Market Street',
       clubs:['Pine Street','Union Street','Market Street','Van Mission','Beale Street'],
       bases:4, dist:'10-30 mi', density:0.45, strategy:'Hub & Spoke',
@@ -656,8 +421,35 @@
       narrative:'Single-club Vancouver outpost. International market — activation timeline to be set by EFTI leadership.' },
   ];
 
-  // Editorial snapshot used as fallback when spreadsheet omits narrative/strategy fields
-  const REGIONS_STATIC = REGIONS.slice();
+  // REGIONS — the live, mutable region/market grouping the rest of this
+  // file (buildRegionLayers, renderSidebar, filterMacro, search, etc.)
+  // has always read. Starts empty; buildStructureFromClubMapData() +
+  // hydrateMap() populate it from data/club_map_data.json's own
+  // region/market fields on first load, exactly the same "mutate in
+  // place" pattern this file already used for the old live API feed.
+  const REGIONS = [];
+
+  // Compatibility adapter: the existing filter UI (data-macro="WEST" etc.,
+  // untouched) expects the app's original 5-value macro set. The JSON's
+  // own `region` field is finer-grained (7 distinct values observed:
+  // West, South, NYC, Northeast, North, Canada, Southern California).
+  // This map documents the same categorization the app already used
+  // historically (REGIONS_STATIC above already grouped SoCal sub-regions
+  // under macro:'WEST' and Toronto/Vancouver under macro:'NORTH') — it
+  // does not invent a new grouping, just makes the existing one explicit
+  // for values the JSON can now send that the old live feed never did.
+  // A `region` value with no entry here resolves to macro:null, which is
+  // deliberately excluded from the macro-filtered sidebar rather than
+  // defaulted to WEST (requirement 7/17) — see buildStructureFromClubMapData().
+  const JSON_REGION_TO_MACRO = {
+    'West': 'WEST',
+    'Southern California': 'WEST',
+    'South': 'SOUTH',
+    'NYC': 'NYC',
+    'Northeast': 'NORTHEAST',
+    'North': 'NORTH',
+    'Canada': 'NORTH',
+  };
 
   // ── GEO MATH ───────────────────────────────────────────────
   function haversineM(a, b) {
@@ -903,7 +695,12 @@
           const isHub = HUB_CLUBS.has(c);
           const cxSrc = isDark ? (isHub ? COACH_X_ICON : COACH_X_ICON_WHITE) : (isHub ? COACH_X_ICON_WHITE : COACH_X_ICON);
           const cxLogo = (cd.coach_x > 0) ? `<img src="${cxSrc}" class="coachx-icon" style="height:10px;vertical-align:middle;display:inline;margin-left:4px;opacity:0.75;">` : '';
-          return `<span class="club-tag${isHub?' is-hub':''}" onclick="flyToClub('${c.replace(/'/g,"\\'")}',event)" title="Zoom to ${c}">${c}${idStr}${brain}${cxLogo}</span>`;
+          // Preview-stage clubs (data/club_map_data.json map_stage==='Preview')
+          // stay visible per the approved visibility rules but are flagged
+          // inline — same restrained inline-badge convention the marker
+          // tooltip already uses for "HUB" below, not a new visual pattern.
+          const previewBadge = cd.isPreview ? ' <span style="opacity:0.6;font-size:9px">PREVIEW</span>' : '';
+          return `<span class="club-tag${isHub?' is-hub':''}" onclick="flyToClub('${c.replace(/'/g,"\\'")}',event)" title="Zoom to ${c}">${c}${idStr}${brain}${cxLogo}${previewBadge}</span>`;
         }).join('');
         html += `
           <div class="region-card" id="card-${region.id}" data-region-id="${region.id}" style="border-left-color:${COLORS[region.macro]}">
@@ -1486,68 +1283,77 @@
   });
   document.getElementById('topbar').appendChild(styleBtn);
 
-  // ── FETCH LAYER ────────────────────────────────────────────
-  async function fetchLiveData() {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout — approved security decision item
-    try {
-      const res = await fetch(DATA_URL, { method: 'POST', signal: controller.signal });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
-
-  // ── TRANSFORM LAYER ────────────────────────────────────────
-  function transformApiData(rows) {
-    const num = v => parseInt(v) || 0;
-    const str = v => (v || '').toString().trim();
+  // ── CLUB MAP DATA → LEAFLET STRUCTURE ───────────────────────
+  // Replaces the old fetchLiveData()/transformApiData() pair. Reads the
+  // already-loaded, already-normalized window.CLUB_MAP_DATA (js/club-map-data.js)
+  // instead of fetching the Power Automate feed directly — that feed is no
+  // longer read from this file at all (Strategy C; see the header note).
+  function buildStructureFromClubMapData() {
+    const cmd = window.CLUB_MAP_DATA;
     const coordsNew = {}, hubSet = new Set(), regionMap = {}, clubIdx = {};
 
-    rows.forEach(row => {
-      const club_name     = str(row.club_name);
-      const region        = str(row.region);
-      const macro_region  = str(row.macro_region).toUpperCase();
-      const lat           = parseFloat(row.latitude);
-      const lng           = parseFloat(row.longitude);
-      const is_hub        = ['yes','true','1','x'].includes(str(row.is_hub).toLowerCase());
-      const hub_club      = str(row.hub_club);
-      const club_id       = CLUB_IDS[club_name] || '';
-      const strategy      = str(row.strategy);
-      const coach         = num(row.coach);
-      const coach_plus    = num(row['coach_+']);
-      const coach_x       = num(row.coach_x);
-      const total_coaches  = num(row.total_coaches);
-      const educator_count = num(row.educator_count);
+    (cmd.visibleRecords || []).forEach(r => {
+      const name = r.displayClubName;
+      // Invalid coordinates stay in CLUB_MAP_DATA.validationIssues for
+      // diagnostics but never create a marker, never default to 0,0, and
+      // are never assigned an approximate position (requirement 6).
+      if (!name || !r.hasValidCoords) return;
 
-      if (!club_name || isNaN(lat) || isNaN(lng)) return;
+      coordsNew[name] = [r.latitude, r.longitude];
+      if (r.isHub) hubSet.add(name);
 
-      coordsNew[club_name] = [lat, lng];
-      if (is_hub) hubSet.add(club_name);
-      clubIdx[club_name] = { club_name, region, macro_region, is_hub, hub_club, club_id, strategy, coach, coach_plus, coach_x, total_coaches, educator_count };
+      // Compatibility adapter (requirement 17) — never defaulted to WEST;
+      // an unmapped `region` value stays '' (see JSON_REGION_TO_MACRO above).
+      const macro = JSON_REGION_TO_MACRO[r.region] || null;
 
-      if (!region) return;
-      if (!regionMap[region]) regionMap[region] = { name: region, macro: macro_region, hub: hub_club || null, strategy, clubs: [] };
-      regionMap[region].clubs.push(club_name);
-      if (is_hub && !regionMap[region].hub) regionMap[region].hub = club_name;
-      if (strategy && !regionMap[region].strategy) regionMap[region].strategy = strategy;
+      // Legacy field names (club_id, educator_count, coach_x, coach,
+      // coach_plus, total_coaches, macro_region) are the ones existing call
+      // sites in this file already read (tooltips, sidebar tags, search,
+      // hydrateMap's stat totals, js/globe-data-adapter.js) — set
+      // explicitly so they win over any same-named field the extended
+      // record spread below might otherwise shadow. Every other field on
+      // `r` (clubType, mapStage, region, market, eftiEducatorNames,
+      // ptmCount, ...) passes through unchanged for js/globe-data-adapter.js
+      // and js/globe-popups.js to consume.
+      clubIdx[name] = Object.assign({}, r, {
+        club_id: r.clubId,
+        is_hub: !!r.isHub,
+        macro_region: macro || '',
+        coach: r.coachCount,
+        coach_plus: r.coachPlusCount,
+        coach_x: r.coachXCount,
+        total_coaches: r.totalCoachCount,
+        educator_count: r.eftiEducatorCount,
+      });
+
+      // Grouping key is the JSON's own `market` field — no inference. A
+      // blank market (Burbank/Playa Vista/King West today) buckets into an
+      // explicit "Unassigned Market" fallback group, scoped per raw
+      // `region` so it never gets forced into a single miscellaneous
+      // macro (requirement 7).
+      const marketKey = r.market || `__unassigned__${r.region || 'unknown'}`;
+      const marketLabel = r.market || 'Unassigned Market';
+      if (!regionMap[marketKey]) regionMap[marketKey] = { name: marketLabel, macro, clubs: [], hasBlankMarket: !r.market };
+      regionMap[marketKey].clubs.push(name);
     });
 
     const regionsNew = Object.values(regionMap).map(r => {
+      // REGIONS_STATIC is a temporary compatibility layer for narrative/
+      // hub-label/strategy/density text only — matched by market name,
+      // never used to decide which clubs exist or where they render.
       const s   = REGIONS_STATIC.find(x => x.name === r.name) || {};
       const pfx = { WEST:'W', SOUTH:'S', NYC:'N', NORTHEAST:'NE', NORTH:'NO' }[r.macro] || 'X';
       return {
-        id:        s.id       || `${pfx}_${r.name.replace(/[^A-Z0-9]/gi,'_').toUpperCase()}`,
-        macro:     r.macro    || s.macro    || 'WEST',
+        id:        s.id || `${pfx}_${r.name.replace(/[^A-Z0-9]/gi,'_').toUpperCase()}`,
+        macro:     r.macro, // never defaulted to WEST — an unmapped `region` value stays null (requirement 7/17)
         name:      r.name,
-        hub:       r.hub      || s.hub      || r.clubs[0] || '',
+        hub:       s.hub || r.clubs[0] || '',
         clubs:     r.clubs,
-        bases:     s.bases    !== undefined  ? s.bases    : 0,
+        bases:     s.bases    !== undefined ? s.bases    : 0,
         dist:      s.dist     || 'TBD',
-        density:   s.density  !== undefined  ? s.density  : null,
-        strategy:  r.strategy || s.strategy || 'Hub & Spoke',
-        narrative: s.narrative || '',
+        density:   s.density  !== undefined ? s.density  : null,
+        strategy:  s.strategy || 'Hub & Spoke',
+        narrative: s.narrative || (r.hasBlankMarket ? 'Market not yet assigned in the source data — clubs below are visible on the map but awaiting market classification.' : ''),
       };
     });
 
@@ -1600,19 +1406,39 @@
     if (elPTE) elPTE.textContent = `EFTI EDUCATORS 🧠: ${totalPTE}`;
   }
 
-  // ── LIVE DATA INIT ─────────────────────────────────────────
+  // ── CLUB MAP DATA INIT ───────────────────────────────────────
+  // Runs once at boot: awaits window.CLUB_MAP_DATA.ready (js/club-map-data.js's
+  // single fetch of data/club_map_data.json), then builds and hydrates.
+  // If the JSON failed to load, the map shell still renders (existing
+  // Leaflet init above is unconditional) with an explicit unavailable
+  // status — never a stale/misleading number (requirement 21).
   async function initMapData() {
     const statusEl = document.getElementById('portfolio-data-status');
     try {
-      const raw        = await fetchLiveData();
-      const structured = transformApiData(raw);
-      hydrateMap(structured);
+      const cmd = await window.CLUB_MAP_DATA.ready;
+      if (cmd.loadStatus !== 'ok') {
+        console.error('[Club Portfolio] data/club_map_data.json failed to load:', cmd._loadError);
+        if (statusEl) statusEl.textContent = 'Club data unavailable';
+        return;
+      }
+      hydrateMap(buildStructureFromClubMapData());
       if (statusEl) statusEl.textContent = 'Live data';
     } catch (err) {
-      console.error('[EQX Map] API fetch failed, map running on cached/static data:', err);
-      if (statusEl) statusEl.textContent = 'Cached data — live source unreachable';
+      console.error('[Club Portfolio] Unexpected error building map data:', err);
+      if (statusEl) statusEl.textContent = 'Club data unavailable';
     }
   }
+
+  // Strategy C: the Power Automate feed is retained only as a best-effort
+  // hub-metadata enrichment (is_hub/hub_club), owned entirely by
+  // js/club-map-data.js — it can never overwrite a JSON-controlled field.
+  // Re-hydrating here on each enrichment update (initial load, plus the
+  // periodic refresh below) only ever changes HUB_CLUBS membership and the
+  // Dev. Hubs stat — every club identity/coordinate/coach/management/
+  // educator field stays exactly what the JSON said, unchanged.
+  window.CLUB_MAP_DATA.onUpdate(function () {
+    if (window.CLUB_MAP_DATA.loadStatus === 'ok') hydrateMap(buildStructureFromClubMapData());
+  });
 
   // ── CLUB SEARCH ────────────────────────────────────────────
   let _searchActiveIdx = -1;
@@ -1629,12 +1455,21 @@
       return;
     }
 
+    // Matches display name, source name, club ID, city, state, region, and
+    // market (requirement 16) — every candidate name here is already
+    // visibility-filtered (Object.keys(COORDS) only ever contains
+    // dashboard-included, non-Hidden records; see buildStructureFromClubMapData()).
     const matches = Object.keys(COORDS)
       .filter(name => {
         if (name === '_init') return false;
         if (name.toLowerCase().includes(query)) return true;
         const cd = _clubDataIndex[name];
         if (cd?.club_id && cd.club_id.toString().includes(query)) return true;
+        if (cd?.sourceClubName && cd.sourceClubName.toLowerCase().includes(query)) return true;
+        if (cd?.city && cd.city.toLowerCase().includes(query)) return true;
+        if (cd?.state && cd.state.toLowerCase().includes(query)) return true;
+        if (cd?.region && cd.region.toLowerCase().includes(query)) return true;
+        if (cd?.market && cd.market.toLowerCase().includes(query)) return true;
         const entry = CLUB_REGION[name];
         if (!entry) return false;
         const rName  = (entry.region?.name  || '').toLowerCase();
@@ -1653,11 +1488,12 @@
       const cd         = _clubDataIndex[name] || {};
       const brain      = (cd.educator_count > 0) ? ' 🧠' : '';
       const idStr      = cd.club_id ? ` | ${cd.club_id}` : '';
+      const previewTag = cd.isPreview ? ' <span style="opacity:0.6;font-size:9px">PREVIEW</span>' : '';
       const entry      = CLUB_REGION[name];
       const regionLabel = entry?.region?.name || '';
       const safe       = name.replace(/'/g, "\\'");
       return `<div class="search-item" data-name="${name}" onmousedown="selectClub('${safe}')">
-        <span class="search-club">${name}${idStr}${brain}</span>
+        <span class="search-club">${name}${idStr}${brain}${previewTag}</span>
         <span class="search-sep">·</span>
         <span class="search-region">${regionLabel}</span>
       </div>`;
@@ -1755,7 +1591,16 @@
   renderSavedPresets();
   buildLegendIcons();
   initMapData();
-  setInterval(initMapData, 300000);
+  // Periodic tick preserved from the old live-polling loop, but re-scoped
+  // to Strategy C: data/club_map_data.json is fetched exactly once (no
+  // point re-fetching a static file), so this now only re-runs the
+  // best-effort Power Automate hub-metadata enrichment — never touches
+  // any JSON-controlled field (club identity, coordinates, coach/
+  // management/educator counts, status, classification all stay exactly
+  // what the JSON said, unchanged by this loop).
+  setInterval(function () {
+    if (window.CLUB_MAP_DATA.refreshHubEnrichment) window.CLUB_MAP_DATA.refreshHubEnrichment();
+  }, 300000);
 
   // Additive-only exposure for the optional globe renderer (js/globe-data-adapter.js).
   // Live references, not snapshots: COORDS/REGIONS/HUB_CLUBS are mutated in
@@ -1765,7 +1610,6 @@
   // Nothing in this file reads from window.PORTFOLIO_DATA; it exists purely
   // for other, optional modules to consume.
   window.PORTFOLIO_DATA = {
-    CLUB_IDS,
     COORDS,
     REGIONS,
     HUB_CLUBS,

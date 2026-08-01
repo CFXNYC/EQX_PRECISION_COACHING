@@ -29,15 +29,11 @@
 
   // Every list is built from GLOBE_DATA.toGeoJSON() — the same source of
   // truth the map's own P/H/O marker layers filter against
-  // (js/globe-markers.js). The Precision Coaching list is the one
-  // exception: it reads isPilotClub (the approved 10-club roster, resolved
-  // by club ID via CLUB_NORM — same source the popup banner uses), not
-  // isPrecisionClub (the separate 9-entry P-marker allowlist in
-  // globe-data-adapter.js, which still drives which clubs get the P glyph
-  // on the map itself — untouched here). So a pilot club missing from the
-  // P-marker allowlist still surfaces correctly in this list even though
-  // its on-map marker doesn't (yet) match — a known, separate discrepancy,
-  // not something this list should also get wrong.
+  // (js/globe-markers.js). isPilotClub and isPrecisionClub are now both
+  // derived from the same data/club_map_data.json club_type field (see
+  // globe-data-adapter.js's header note), so this list and the on-map P
+  // marker always agree — the old 10-club-roster-vs-9-entry-allowlist
+  // discrepancy (Anthem Row) no longer exists.
   function clubsWhere(predicate) {
     if (!root.GLOBE_DATA) return [];
     const fc = root.GLOBE_DATA.toGeoJSON();

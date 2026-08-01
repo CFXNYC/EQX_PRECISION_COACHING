@@ -45,14 +45,13 @@
     const found = root.GLOBE_DATA.findClubRegion(clubName);
     const region = found ? found.region : null;
     const isHub = found ? found.isHub : false;
-    // Pilot status resolved by club ID (via CLUB_NORM's alias table), never
-    // by display-name string matching — same approved 10-club roster used
-    // everywhere else pilot status is checked (STATE.setSelectedClub in
-    // globe-camera.js/render-portfolio.js). Deliberately NOT the separate
-    // 9-entry PRECISION_COACHING_CLUB_IDS allowlist in globe-data-adapter.js
-    // (that one drives the P-marker/legend and is out of scope here).
-    const norm = root.CLUB_NORM ? root.CLUB_NORM.normalize(clubName) : null;
-    const isPilot = !!(norm && norm.isPilotClub);
+    // Pilot status resolved from data/club_map_data.json's own club_type
+    // field (via the shared clubDataIndex — the same source the P marker
+    // and legend now use, see globe-data-adapter.js's header note) — no
+    // longer CLUB_NORM's hardcoded roster. CLUB_NORM is still used
+    // elsewhere in this app (STATE.setSelectedClub's cross-tab bridge,
+    // the coach-side dropdown) but is out of scope for this determination.
+    const isPilot = cd.clubType === "Pilot Club";
     // Pilot takes precedence over hub — a pilot+hub club (e.g. Sports Club
     // LA) shows one banner, never both stacked.
     const bannerText = isPilot ? "Pilot Club" : (isHub ? "Hub Club" : null);
@@ -87,7 +86,8 @@
     // (never a "0" or placeholder) when a club has no coach record at
     // all, per spec — a blank reserved row, not fabricated data.
     const kpiRowHtml = hasCoachData
-      ? `Coach: <strong>${cd.coach || 0}</strong> &middot; Coach<sup>+</sup>: <strong>${cd.coach_plus || 0}</strong> &middot; COACH<img src="${coachXIcon}" class="popup-coachx-inline">:<strong>${cd.coach_x || 0}</strong>`
+      ? `Coach: <strong>${cd.coach || 0}</strong> &middot; Coach<sup>+</sup>: <strong>${cd.coach_plus || 0}</strong> &middot; COACH<img src="${coachXIcon}" class="popup-coachx-inline">:<strong>${cd.coach_x || 0}</strong>` +
+        (cd.advantageCoachCount > 0 ? ` &middot; Advantage: <strong>${cd.advantageCoachCount}</strong>` : "")
       : "";
     const totalRowHtml = hasCoachData ? `Total Coaches: <strong>${cd.total_coaches || 0}</strong>` : "";
 
@@ -105,7 +105,20 @@
     if (extra.clusterRadiusMi != null) extraLines.push(`Cluster radius: <strong>${extra.clusterRadiusMi} mi</strong>`);
     if (distToHubMi != null) extraLines.push(`Distance to <strong>${escapeHtml(region.hub)}</strong>: <strong>${distToHubMi} mi</strong>`);
     if (cd.educator) extraLines.push(`Educator: <strong>${escapeHtml(cd.educator)}</strong>${cd.job_title ? ` &mdash; ${escapeHtml(cd.job_title)}` : ""}`);
-    if (cd.educator_count > 0) extraLines.push(`Educators: <strong>${cd.educator_count}</strong> \u{1F9E0}`);
+    // EFTI educator count/names — for efti_educator_count===0, the existing
+    // zero/empty-state pattern (this block simply not rendering) applies;
+    // no empty educator-name block is ever shown. Email addresses stay in
+    // the raw record (available for a future approved admin view) but are
+    // never surfaced in this standard popup (requirement 14).
+    if (cd.educatorCount > 0 || cd.eftiEducatorCount > 0) {
+      const n = cd.eftiEducatorCount || cd.educatorCount || 0;
+      extraLines.push(`EFTI Educators: <strong>${n}</strong> \u{1F9E0}${cd.eftiEducatorNames ? ` &mdash; ${escapeHtml(cd.eftiEducatorNames)}` : ""}`);
+    }
+    if (cd.ptmCount > 0) extraLines.push(`PTM: <strong>${cd.ptmCount}</strong>${cd.ptmNames ? ` &mdash; ${escapeHtml(cd.ptmNames)}` : ""}`);
+    if (cd.aptmCount > 0) extraLines.push(`APTM: <strong>${cd.aptmCount}</strong>${cd.aptmNames ? ` &mdash; ${escapeHtml(cd.aptmNames)}` : ""}`);
+    if (cd.totalManagementCount > 0) extraLines.push(`Total Management: <strong>${cd.totalManagementCount}</strong>`);
+    if (cd.region) extraLines.push(`Region: <strong>${escapeHtml(cd.region)}</strong>`);
+    if (cd.market) extraLines.push(`Market: <strong>${escapeHtml(cd.market)}</strong>`);
 
     return `<div class="popup-inner">
       <div class="popup-club">${escapeHtml(clubName)}${cd.club_id ? `<span class="popup-club-id"> | ${escapeHtml(cd.club_id)}</span>` : ""}</div>

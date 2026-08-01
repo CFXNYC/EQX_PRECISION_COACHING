@@ -6,8 +6,8 @@
 
    Deliberately reads — never duplicates — the same live data the
    existing Leaflet map already renders: js/render-portfolio.js
-   exposes window.PORTFOLIO_DATA (live references to its CLUB_IDS /
-   COORDS / REGIONS / HUB_CLUBS, plus a getClubDataIndex() getter)
+   exposes window.PORTFOLIO_DATA (live references to its COORDS /
+   REGIONS / HUB_CLUBS, plus a getClubDataIndex() getter)
    purely so this file and any other optional module can consume
    them without a second copy of the club tables existing anywhere
    (see js/club-normalization.js's header note on that rule, and
@@ -21,26 +21,21 @@
    it lazily, at call time, when render-portfolio.js's export
    wrapper actually invokes GLOBE_DATA (see activateGlobeMode() in
    render-portfolio.js).
+
+   CLASSIFICATION (data/club_map_data.json integration): the 9-entry
+   PRECISION_COACHING_CLUB_IDS allowlist formerly here — and its
+   deliberate divergence from club-normalization.js's 10-club
+   PILOT_CLUBS (Finding H-1: Anthem Row/254 was excluded from the
+   P-marker allowlist but still showed the "Pilot Club" popup banner
+   and legend entry) — is removed. Both `isPilotClub` and
+   `isPrecisionClub` below now derive from the SAME source, the JSON's
+   own `club_type` field (via render-portfolio.js's clubDataIndex,
+   itself sourced from window.CLUB_MAP_DATA) — so the two properties
+   can no longer disagree, and Anthem Row (club_type: "Pilot Club" in
+   the JSON) now gets the P marker like every other pilot club.
    ═══════════════════════════════════════════════════════════ */
 (function (root) {
   "use strict";
-
-  // Approved P-marker allowlist — exactly as specified. NOT derived by
-  // filtering club-normalization.js's PILOT_CLUBS (which has 10 entries,
-  // including "254" Anthem Row) precisely so a future roster change can
-  // never silently re-include Anthem Row here without a separate,
-  // explicit decision.
-  const PRECISION_COACHING_CLUB_IDS = [
-    "105",
-    "109",
-    "112",
-    "128",
-    "713",
-    "720",
-    "203",
-    "206",
-    "252",
-  ];
 
   let _connected = false;
   const _updateListeners = [];
@@ -53,17 +48,20 @@
     return root.PORTFOLIO_DATA;
   }
 
-  // Resolves a portfolio club name to { clubId, isPrecisionClub, isPilotClub }.
-  // Returns isPrecisionClub:false / isPilotClub:false (never throws) for the
-  // ~100+ clubs with no directory/pilot record — that's the expected,
-  // normal case for most of the national footprint, not an error.
+  // Resolves a portfolio club name to { clubId, isPrecisionClub, isPilotClub }
+  // using the JSON-sourced clubDataIndex entry (club_type is authoritative —
+  // requirement 4: Pilot Club > Hub Club > Standard Club priority, no more
+  // hardcoded allowlist). Returns all-false (never throws) for a name with
+  // no clubDataIndex entry — not expected in practice since toGeoJSON()
+  // only ever calls this for names already present in COORDS, which is
+  // itself built from the same clubDataIndex.
   function resolveClub(clubName) {
-    const norm = root.CLUB_NORM ? root.CLUB_NORM.normalize(clubName) : null;
-    const clubId = norm ? norm.clubId : null;
+    const cd = data().getClubDataIndex()[clubName] || {};
+    const isPilot = cd.clubType === "Pilot Club";
     return {
-      clubId,
-      isPilotClub: !!(norm && norm.isPilotClub),
-      isPrecisionClub: !!(clubId && PRECISION_COACHING_CLUB_IDS.indexOf(clubId) !== -1),
+      clubId: cd.clubId || cd.club_id || null,
+      isPilotClub: isPilot,
+      isPrecisionClub: isPilot, // same source as isPilotClub now — see header note
     };
   }
 
@@ -80,6 +78,7 @@
 
       const cd = clubDataIndex[name] || {};
       const resolved = resolveClub(name);
+      const isHub = d.HUB_CLUBS.has(name);
 
       features.push({
         type: "Feature",
@@ -87,10 +86,13 @@
         geometry: { type: "Point", coordinates: [lng, lat] }, // GeoJSON is [lng, lat]; COORDS is stored [lat, lng]
         properties: {
           name,
-          clubId: resolved.clubId || cd.club_id || "",
-          isHub: d.HUB_CLUBS.has(name),
+          clubId: resolved.clubId || "",
+          isHub,
           isPilotClub: resolved.isPilotClub,
           isPrecisionClub: resolved.isPrecisionClub,
+          // Legacy short property names — kept for anything already reading
+          // these (region here is the raw JSON `region`, macroRegion is the
+          // JSON_REGION_TO_MACRO-mapped compatibility value).
           region: cd.region || "",
           macroRegion: cd.macro_region || "",
           coach: cd.coach || 0,
@@ -98,6 +100,36 @@
           coachX: cd.coach_x || 0,
           totalCoaches: cd.total_coaches || 0,
           educatorCount: cd.educator_count || 0,
+          // Full data/club_map_data.json-sourced field set (requirement 12).
+          sourceClubName: cd.sourceClubName || "",
+          displayClubName: cd.displayClubName || name,
+          latitude: lat,
+          longitude: lng,
+          market: cd.market || "",
+          country: cd.country || "",
+          locationStatus: cd.locationStatus || "",
+          dashboardIncluded: cd.dashboardIncluded !== false,
+          clubType: cd.clubType || "",
+          mapStage: cd.mapStage || "",
+          isPreview: !!cd.isPreview,
+          coachCount: cd.coachCount || 0,
+          coachPlusCount: cd.coachPlusCount || 0,
+          coachXCount: cd.coachXCount || 0,
+          advantageCoachCount: cd.advantageCoachCount || 0,
+          totalCoachCount: cd.totalCoachCount || 0,
+          eftiEducatorCount: cd.eftiEducatorCount || 0,
+          eftiEducatorNames: cd.eftiEducatorNames || "",
+          eftiEducatorEmails: cd.eftiEducatorEmails || "",
+          ptmCount: cd.ptmCount || 0,
+          ptmNames: cd.ptmNames || "",
+          ptmEmails: cd.ptmEmails || "",
+          aptmCount: cd.aptmCount || 0,
+          aptmNames: cd.aptmNames || "",
+          aptmEmails: cd.aptmEmails || "",
+          totalManagementCount: cd.totalManagementCount || 0,
+          validationStatus: cd.validationStatus || "",
+          sourceMatchStatus: cd.sourceMatchStatus || "",
+          headcountMatchMethod: cd.headcountMatchMethod || "",
         },
       });
     });
@@ -195,7 +227,6 @@
   }
 
   root.GLOBE_DATA = {
-    PRECISION_COACHING_CLUB_IDS,
     resolveClub,
     toGeoJSON,
     connect,

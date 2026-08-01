@@ -23,6 +23,30 @@
 
    Exposed as window.CLUB_NORM in the browser, module.exports in
    Node (for the Phase 3 validation script).
+
+   SCOPE NOTE (data/club_map_data.json integration): the Club Portfolio's
+   marker classification, popup pilot/hub determination, and legend lists
+   no longer use this table — those now read club_type directly from
+   data/club_map_data.json (via js/globe-data-adapter.js /
+   js/globe-popups.js / js/globe-legend.js). CLUB_NORM remains load-bearing
+   for two things only: (1) js/components.js's coach-tab dropdown grouping,
+   and (2) the STATE.setSelectedClub cross-tab bridge written from the
+   Club Portfolio's marker/search/sidebar click handlers
+   (js/render-portfolio.js, js/globe-camera.js) — preserved unchanged, per
+   the approved scope for this integration. Because this table's aliases
+   were captured against the OLD Club Portfolio display names, a club
+   whose data/club_map_data.json display_club_name no longer matches an
+   alias here won't resolve through this table for the STATE bridge, even
+   though it resolves correctly everywhere else (JSON-driven). Checked
+   against all 10 pilot clubs' current display_club_name values as of
+   this integration: 9 of 10 still match; club_id "713" is the one
+   exception (JSON display_club_name is now "Sports Club Los Angeles",
+   matching neither the "Sports Club LA" nor "SCLA" alias below), so
+   STATE.setSelectedClub silently no-ops for that one club — CLUB_NORM.normalize()
+   already returns null, never a guess, for anything unmatched, so this
+   degrades exactly like any other non-resolving name, not a crash. Known,
+   documented remaining dependency; this table itself was not otherwise
+   touched by this integration.
 ═══════════════════════════════════════════════════════════ */
 (function (root) {
   "use strict";

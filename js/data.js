@@ -52,6 +52,12 @@
      render-portfolio.js so `L`, `window.PORTFOLIO_CONFIG`, `window.STATE`,
      and `window.CLUB_NORM` all exist by the time that module runs (Phase 4).
 
+     js/club-map-data.js (data/club_map_data.json integration) loads right
+     after js/state.js — it starts its own fetch immediately and exposes
+     window.CLUB_MAP_DATA.ready as a Promise, so it doesn't need to block
+     the rest of this synchronous injection list; render-portfolio.js and
+     js/globe-data-adapter.js await that promise lazily instead.
+
      High-fidelity globe upgrade (feature/high-fidelity-globe, see
      PRE_GLOBE_PROJECT_CONTEXT.md): Mapbox GL JS + the globe-*.js modules
      load the same way, unconditionally — loading the library costs
@@ -74,6 +80,7 @@
     "https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js",
     "js/portfolio-config.js",
     "js/state.js",
+    "js/club-map-data.js",
     "js/club-normalization.js",
     "js/globe-config.js",
     "js/globe-data-adapter.js",

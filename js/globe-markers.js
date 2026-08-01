@@ -4,8 +4,10 @@
    ---------------------------------------------------------
    Three visual tiers — the approved P/H/O marker hierarchy, restored
    to match the Leaflet map's own hub/pilot treatment:
-     - Precision-coaching clubs (9, exact allowlist in
-       globe-data-adapter.js): EQX P logo, primary emphasis. A
+     - Precision-coaching (pilot) clubs — every club whose
+       data/club_map_data.json club_type is "Pilot Club", resolved by
+       js/globe-data-adapter.js from the JSON, not a hardcoded ID
+       allowlist: EQX P logo, primary emphasis. A
        precision club that is also a hub keeps the P logo — hub
        status never downgrades or replaces it — and is surfaced via
        the existing "Hub Club" popup badge (js/globe-popups.js) plus
