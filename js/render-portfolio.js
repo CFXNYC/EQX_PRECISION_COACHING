@@ -184,20 +184,6 @@
     <div id="region-color-rows"></div>
   </div>
 
-  <div class="style-section">
-    <div class="style-section-title">Marker Size</div>
-    <div class="style-row">
-      <div class="style-row-label">Hub Clubs <span id="val-hub-size">40px</span></div>
-      <input type="range" id="sl-hub-size" class="style-slider" min="24" max="70" step="2" value="40"
-        oninput="HUB_SIZE=+this.value;document.getElementById('val-hub-size').textContent=this.value+'px';syncSlider(this,null);updateMarkerSizes();saveSettings();">
-    </div>
-    <div class="style-row">
-      <div class="style-row-label">Standard Clubs <span id="val-club-size">26px</span></div>
-      <input type="range" id="sl-club-size" class="style-slider" min="14" max="48" step="2" value="26"
-        oninput="CLUB_SIZE=+this.value;document.getElementById('val-club-size').textContent=this.value+'px';syncSlider(this,null);updateMarkerSizes();saveSettings();">
-    </div>
-  </div>
-
   <div class="style-section" id="saved-presets-section">
     <div class="style-section-title">Saved Presets</div>
     <div class="save-preset-row">
@@ -1134,7 +1120,7 @@
   };
 
   // Init all sliders with correct fill on load
-  ['sl-panel-bright','sl-hub-size','sl-club-size'].forEach(id => {
+  ['sl-panel-bright'].forEach(id => {
     const el = document.getElementById(id);
     if (el) syncSlider(el, null);
   });
