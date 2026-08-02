@@ -47,7 +47,7 @@
 ═══════════════════════════════════════════════════════════════ -->
 <div class="topbar">
   <div class="topbar-inner">
-    <div>
+    <div class="topbar-text">
       <h1>EQX Precision Coaching Dashboard</h1>
       <div class="meta">
         <span id="topbar-coach-count">— coaches</span>
@@ -63,9 +63,9 @@
   </div>
   <nav class="primary-nav">
     <button class="nav-tab active" data-view="overview" onclick="App.showView('overview')">Overview</button>
-    <button class="nav-tab" data-view="growth" onclick="App.showView('growth')">Growth</button>
-    <button class="nav-tab" data-view="behavior" onclick="App.showView('behavior')">Behavior</button>
-    <button class="nav-tab" data-view="coach" onclick="App.showView('coach')">Coach</button>
+    <button class="nav-tab" data-view="professionalism" onclick="App.showView('professionalism')">Professionalism</button>
+    <button class="nav-tab" data-view="performance" onclick="App.showView('performance')">Performance</button>
+    <button class="nav-tab" data-view="programming" onclick="App.showView('programming')">Programming</button>
     <button class="nav-tab" data-view="portfolio" onclick="App.showView('portfolio')">Club Portfolio</button>
   </nav>
 </div>
@@ -74,8 +74,9 @@
      VIEWS — populated by js/render-*.js at runtime
 ═══════════════════════════════════════════════════════════════ -->
 <div id="view-overview" class="view active"></div>
-<div id="view-growth" class="view"></div>
-<div id="view-behavior" class="view"></div>
+<div id="view-professionalism" class="view"></div>
+<div id="view-performance" class="view"></div>
+<div id="view-programming" class="view"></div>
 <div id="view-coach" class="view"></div>
 <div id="view-portfolio" class="view"></div>
 
