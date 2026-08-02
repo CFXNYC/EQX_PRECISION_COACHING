@@ -71,6 +71,7 @@
      renderer → regions (business hub-cluster overlay) → markers →
      camera → popups. */
   const PIPELINE_SCRIPTS = [
+    "js/coach-performance-data.js",
     "js/calculations.js",
     "js/recommendations.js",
     "js/charts.js",
@@ -92,8 +93,9 @@
     "js/globe-legend.js",
     "js/render-portfolio.js",
     "js/render-overview.js",
-    "js/render-growth.js",
-    "js/render-behavior.js",
+    "js/render-professionalism.js",
+    "js/render-performance.js",
+    "js/render-programming.js",
     "js/render-coach.js",
     "js/app.js",
   ];

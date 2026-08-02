@@ -54,17 +54,42 @@
     showView("coach");
   }
 
-  function init() {
+  /* Club Portfolio drill-through (Phase 4) — receives the raw club_id
+     string from the popup CTA (js/globe-popups.js) and routes into the
+     Coach tab, pre-filtered to that club. Binding, ID-based end to end:
+     never resolves, normalizes, canonicalizes, or matches by club display
+     name at any step — STATE.selectedClubId is always String(clubId)
+     exactly as passed in, and every consumer (render-coach.js,
+     render-professionalism.js, render-performance.js, render-programming.js)
+     matches it against coach.club_number via strict string equality only.
+     This is why club 713 (Sports Club LA), whose portfolio display name
+     doesn't match CLUB_NORM's alias table, works identically to every
+     other pilot club here — this path never touches CLUB_NORM. */
+  function viewCoachAnalyticsForClub(clubId) {
+    if (!clubId) return;
+    window.STATE.setSelectedClub(String(clubId));
+    window.STATE.setActiveView("coach");
+    showView("coach");
+  }
+
+  async function init() {
     hydrateTopbar();
+    // Competency scores are attached asynchronously (see calculations.js
+    // header) — wait for them so first paint never renders a false "Data
+    // pending" for scores that are simply still loading.
+    if (window.PRECISION_SCORES_READY && typeof window.PRECISION_SCORES_READY.then === "function") {
+      await window.PRECISION_SCORES_READY;
+    }
     window.PAGE_OVERVIEW.render();
-    window.PAGE_GROWTH.render();
-    window.PAGE_BEHAVIOR.render();
+    window.PAGE_PROFESSIONALISM.render();
+    window.PAGE_PERFORMANCE.render();
+    window.PAGE_PROGRAMMING.render();
     window.PAGE_COACH.render();
     window.PAGE_PORTFOLIO.render();
     showView("overview");
     if (window.PRECISION_HIDE_LOADING) window.PRECISION_HIDE_LOADING();
   }
 
-  window.App = { init, showView, showCoach };
+  window.App = { init, showView, showCoach, viewCoachAnalyticsForClub };
   init();
 })();

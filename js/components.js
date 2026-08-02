@@ -49,22 +49,37 @@
     return `<span class="badge badge-${band.tone}">${band.label}</span>`;
   }
 
-  /* Only the exception case (no performance record yet) gets a badge — the
-     normal case (has performance data) is unmarked to keep the roster clean. */
+  /* Only the exception case (no KPI evidence record yet) gets a badge — the
+     normal case (has KPI evidence) is unmarked to keep the roster clean.
+     This is about raw_performance/mapping_status specifically (KPI evidence
+     availability) — an independent axis from competency-score availability,
+     see overallScoreDisplay below. */
   function mappingBadge(mappingStatus) {
     if (mappingStatus === "no_kpi_data") return `<span class="badge badge-no-kpi">No Performance Data</span>`;
     return "";
   }
 
-  /* Overall-score text shown anywhere a coach's score appears. Honors the
-     60% coverage gate and the no-performance-data case — never renders a
-     numeric score for either. */
+  /* Overall-score text shown anywhere a coach's competency-based score
+     appears. Honors the 60% coverage gate and the no-rating case — never
+     renders a numeric score for either, and never renders 0. A coach can
+     have KPI evidence with no competency rating yet (or vice versa) — this
+     gates on overall_score (real ratings present), not raw_performance or
+     mere row-matching (see calculations.js's hasCompetencyScore comment for
+     why row-matching alone is not "has a score"). */
   function overallScoreDisplay(coach) {
-    if (!coach.raw_performance) return { text: "—", sub: "No Performance Data", insufficient: false, noKpi: true };
-    if (!coach.score_coverage || !coach.score_coverage.meets_threshold) {
-      return { text: "—", sub: "Insufficient data to calculate a reliable score", insufficient: true, noKpi: false };
+    if (coach.overall_score === null || coach.overall_score === undefined) {
+      return { text: "—", sub: "Data pending", insufficient: false, noScore: true };
     }
-    return { text: String(coach.overall_score), sub: coach.performance_band, insufficient: false, noKpi: false };
+    if (!coach.score_coverage || !coach.score_coverage.meets_threshold) {
+      return { text: "—", sub: `Data pending — ${coach.coverage_label || "below coverage threshold"}`, insufficient: true, noScore: false };
+    }
+    return { text: String(coach.overall_score), sub: coach.performance_band, insufficient: false, noScore: false };
+  }
+
+  /* Standard "Data pending" empty-state block — consolidates the ad hoc
+     empty-state HTML previously duplicated across render-*.js files. */
+  function dataPendingBlock(message) {
+    return `<div class="empty-state">${escapeHtml(message || "Data pending.")}</div>`;
   }
 
   function coverageBadge(coveragePct, meetsThreshold) {
@@ -117,41 +132,126 @@
     return `${value} ${unit}`;
   }
 
-  /* ── Score-detail block: renders every metric in a scoring category ── */
-  function scoreCategoryDetail(categoryLabel, categoryScore, categoryCoverage, detail) {
-    const rows = Object.values(detail).map((m) => {
-      const targetText = (m.target && typeof m.target === "object")
-        ? `${m.target.min}-${m.target.max}`
-        : (m.unit === "%" ? `${Math.round(m.target * 1000) / 10}%` : withUnit(m.target, m.unit));
-      const actualText = m.available
-        ? (m.unit === "%" ? `${Math.round(m.actual * 1000) / 10}%` : withUnit(Math.round(m.actual * 10) / 10, m.unit))
-        : "—";
-      return targetBar({ label: m.label, actualText, targetText, score: m.score, available: m.available });
-    }).join("");
+  /* ── Competency bar: a single 1-5 rating normalized to 0-100, with no
+     "target" implied (competencies aren't scored against a target — only
+     KPI evidence historically was). Renders "Data pending" when unrated,
+     never a fake 0. Reuses the existing target-bar-* CSS classes since the
+     visual shape (label, value, track, fill) is identical — only the
+     semantics differ from the old KPI target bar. ── */
+  function competencyBar({ label, raw, normalized, available }) {
+    if (!available) {
+      return `
+        <div class="target-bar-row">
+          <div class="target-bar-head"><span class="target-bar-label">${escapeHtml(label)}</span><span class="target-bar-value target-bar-unavailable">Data pending</span></div>
+          <div class="target-bar-track"><div class="target-bar-fill" style="width:0%;background:var(--light-gray)"></div></div>
+        </div>`;
+    }
+    const color = window.CHARTS ? window.CHARTS.scoreColor(normalized) : "#1a1a1a";
+    const fillPct = Math.max(4, Math.min(100, normalized));
+    return `
+      <div class="target-bar-row">
+        <div class="target-bar-head">
+          <span class="target-bar-label">${escapeHtml(label)}</span>
+          <span class="target-bar-value">${escapeHtml(String(raw))}/5</span>
+        </div>
+        <div class="target-bar-track"><div class="target-bar-fill" style="width:${fillPct}%;background:${color}"></div></div>
+      </div>`;
+  }
+
+  /* ── Competency-detail block: renders every competency in a pillar,
+     replacing the old KPI-target scoreCategoryDetail for scored content.
+     coverageLabel is the count-based "X of 3 competency inputs available"
+     string computed once in calculations.js — never re-derived here. ── */
+  function competencyCategoryDetail(categoryLabel, categoryScore, coverageLabel, detail) {
+    const rows = Object.values(detail || {}).map((m) => competencyBar({ label: m.label, raw: m.raw, normalized: m.normalized, available: m.available })).join("");
     return `
       <div class="score-category-card">
         <div class="score-category-head">
           <span class="label-sm">${escapeHtml(categoryLabel)}</span>
           <span class="score-category-num">${categoryScore !== null && categoryScore !== undefined ? Math.round(categoryScore) : "—"}</span>
         </div>
-        ${coverageBadge(categoryCoverage, categoryCoverage >= 0.6)}
+        <div class="label-xs" style="text-transform:none;letter-spacing:0;margin:2px 0 6px">${escapeHtml(coverageLabel || "")}</div>
         <div class="score-category-metrics">${rows}</div>
       </div>`;
+  }
+
+  /* ── Evidence row: plain, non-scored KPI cards shown alongside a pillar's
+     competency detail. Never implies a target/score — evidence only. ── */
+  function evidenceRow(items) {
+    const cards = (items || []).map((e) => {
+      const value = e.available
+        ? (e.unit === "%" ? `${Math.round(e.value * 1000) / 10}%` : withUnit(Math.round(e.value * 10) / 10, e.unit))
+        : "Data pending";
+      return kpiCard({ label: e.label, value, sub: e.available ? "Evidence" : undefined });
+    }).join("");
+    return `<div class="kpi-grid">${cards}</div>`;
+  }
+
+  /* ── Curriculum progress card (Professionalism/Performance/Programming
+     pages, Coach profile) ───────────────────────────────────────── */
+  function curriculumProgressCard(curriculum) {
+    if (!curriculum || !curriculum.totalCount) {
+      return `<div class="card card-pad"><div class="section-header"><span class="label-sm">Curriculum Progress</span></div>${dataPendingBlock("No curriculum enrollment on record.")}</div>`;
+    }
+    const rows = curriculum.paths.map((p) => `
+      <div class="baseline-item">
+        <span class="baseline-lbl">${escapeHtml(p.path_title || "—")}</span>
+        <span class="baseline-val">${p.learner_completion_date ? "Completed" : escapeHtml(p.learner_status || "In progress")}${p.progress !== null && p.progress !== undefined ? ` · ${p.progress}%` : ""}</span>
+      </div>`).join("");
+    return `
+      <div class="card card-pad">
+        <div class="section-header"><span class="label-sm">Curriculum Progress</span><span class="label-xs">${curriculum.completedCount} of ${curriculum.totalCount} paths completed</span></div>
+        <div class="baseline-strip">${rows}</div>
+      </div>`;
+  }
+
+  /* ── Club lead totals card — club-level ONLY. Carries an explicit caption
+     so it is never mistaken for a per-coach figure (binding rule: lead
+     totals must be clearly distinguished from individual coach metrics,
+     never divided or allocated to a coach). ── */
+  function leadTotalsCard(leadTotals) {
+    if (!leadTotals) {
+      return `<div class="card card-pad"><div class="section-header"><span class="label-sm">Club Lead Totals</span></div>${dataPendingBlock("No lead data on record for this club.")}</div>`;
+    }
+    return `
+      <div class="card card-pad">
+        <div class="section-header"><span class="label-sm">Club Lead Totals</span></div>
+        <div class="baseline-strip">
+          <div class="baseline-item"><span class="baseline-lbl">Fitness Specialist Leads</span><span class="baseline-val">${leadTotals.fitness_specialist_leads}</span></div>
+          <div class="baseline-item"><span class="baseline-lbl">Special Event Leads</span><span class="baseline-val">${leadTotals.special_event_leads}</span></div>
+          <div class="baseline-item"><span class="baseline-lbl">Total Leads</span><span class="baseline-val">${leadTotals.total_leads}</span></div>
+        </div>
+        <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:10px;color:var(--mid-gray)">Club-level total — not attributable to individual coach performance.</div>
+      </div>`;
+  }
+
+  /* ── Club filter <select> options — shared by Overview, Professionalism,
+     Performance, Programming, and Coach. Values are
+     always the raw club_number string (never a CLUB_NORM canonical name),
+     so this list is safe to drive from STATE.selectedClubId directly via
+     strict string equality. selectedValue (optional) marks the matching
+     option `selected` so a programmatic filter change (e.g. the Club
+     Portfolio drill-through) stays visually in sync after a re-render. ── */
+  function clubFilterOptionsHtml(clubs, selectedValue) {
+    const sel = selectedValue || "ALL";
+    const opts = [`<option value="ALL"${sel === "ALL" ? " selected" : ""}>All Clubs</option>`];
+    (clubs || []).forEach(c => opts.push(`<option value="${c.club_number}"${sel === c.club_number ? " selected" : ""}>${escapeHtml(c.club_name)}</option>`));
+    return opts.join("");
   }
 
   /* ── Grouped coach <option> list — clubs as non-selectable <optgroup>
      headers, coaches indented beneath (native <select> behavior handles
      the non-selectable/keyboard/scrolling requirements for free). Shared
-     by every page that offers a per-coach dropdown (Behavior, Growth) so
-     club grouping/sorting logic lives in exactly one place. Resolves each
-     coach's club through CLUB_NORM — the single club-normalization
-     source — rather than re-deriving club identity here. ── */
+     by every page that offers a per-coach dropdown. Groups by each coach's
+     own raw club_number/club_name (already attached in data.js from the
+     approved pilot_coach_directory.json) — deliberately NOT through
+     CLUB_NORM or any canonical/display-name resolution, so this dropdown
+     has zero dependency on club-name normalization. ── */
   function groupedCoachOptionsHtml(coaches) {
     const groups = new Map(); // clubKey -> { label, coaches: [] }
     (coaches || []).forEach((c) => {
-      const norm = window.CLUB_NORM && window.CLUB_NORM.normalize(c.club_number || c.club_name);
-      const key = norm ? norm.clubId : `unmatched:${c.club_name || ""}`;
-      const label = norm ? norm.canonicalName : (c.club_name || "Unassigned");
+      const key = c.club_number || `unassigned:${c.club_name || ""}`;
+      const label = c.club_name || "Unassigned";
       if (!groups.has(key)) groups.set(key, { label, coaches: [] });
       groups.get(key).coaches.push(c);
     });
@@ -170,9 +270,9 @@
   /* ── Coach card (grid item) ───────────────────────────────────── */
   function miniScoreRow(coach) {
     const vals = [
-      { lbl: "PROD", v: coach.production_score },
-      { lbl: "PROC", v: coach.process_score },
-      { lbl: "PERS", v: coach.persistence_score },
+      { lbl: "PERF", v: coach.performance_score },
+      { lbl: "PROG", v: coach.programming_score },
+      { lbl: "PROF", v: coach.professionalism_score },
     ];
     return `<div class="coach-card-minis">${vals.map(x => `
       <div class="coach-card-mini">
@@ -181,13 +281,14 @@
       </div>`).join("")}</div>`;
   }
 
+  const TONE_COLOR = { risk: "var(--coral)", foundation: "var(--mid-gray)", momentum: "var(--amber)", results: "var(--blue)", standard: "var(--green)" };
+
   function coachCard(coach) {
     const scoreInfo = overallScoreDisplay(coach);
-    const band = (!scoreInfo.insufficient && !scoreInfo.noKpi) ? window.CALC.statusBandFor(coach.overall_score) : null;
-    const toneColor = band
-      ? { risk: "var(--coral)", foundation: "var(--mid-gray)", momentum: "var(--amber)", standard: "var(--green)" }[band.tone]
-      : "var(--light-gray)";
+    const band = (!scoreInfo.insufficient && !scoreInfo.noScore) ? window.CALC.statusBandFor(coach.overall_score) : null;
+    const toneColor = band ? TONE_COLOR[band.tone] : "var(--light-gray)";
     const clubText = coach.club_name || "—";
+    const hasScore = !scoreInfo.noScore && !scoreInfo.insufficient;
     // coach_id is always either a directory id ("PC-###") or synthesized from
     // normalizeCoachName (alphanumeric only) — never contains quotes/HTML.
     return `
@@ -200,15 +301,55 @@
           </div>
           <div class="coach-card-score" style="color:${toneColor}">${scoreInfo.text}</div>
         </div>
-        ${coach.mapping_status !== "no_kpi_data" ? miniScoreRow(coach) : `<div class="coach-card-minis"><span class="label-xs">No Performance Data</span></div>`}
+        ${hasScore ? miniScoreRow(coach) : `<div class="coach-card-minis"><span class="label-xs">Data pending</span></div>`}
         <div class="coach-card-foot">
           ${mappingBadge(coach.mapping_status)}
         </div>
       </div>`;
   }
 
+  /* ── Pillar entry card (Overview → Professionalism/Performance/
+     Programming). pillarKey drives the CSS accent color via the existing
+     --pillar-professionalism/--pillar-programming/--pillar-performance
+     tokens in styles.css. score/coverageLabel come straight from the same
+     scored aggregate Overview already computes — never re-derived here. ── */
+  function pillarEntryCard({ pillarKey, label, weightLabel, score, coverageLabel, onClick }) {
+    const scoreText = score !== null && score !== undefined ? Math.round(score) : "—";
+    return `
+      <div class="pillar-entry-card pillar-entry-${escapeHtml(pillarKey)}" onclick="${onClick}">
+        <div class="pillar-entry-top">
+          <span class="pillar-entry-label">${escapeHtml(label)}</span>
+          <span class="pillar-entry-weight">${escapeHtml(weightLabel)}</span>
+        </div>
+        <div class="pillar-entry-score">${scoreText}</div>
+        <div class="label-xs" style="text-transform:none;letter-spacing:0">${escapeHtml(coverageLabel || "")}</div>
+        <div class="pillar-entry-cta">Open ${escapeHtml(label)} →</div>
+      </div>`;
+  }
+
+  /* ── Curriculum summary, compact (Overview) — aggregate roll-up only;
+     see calculations.js's curriculumProgressSummary header for why this
+     never shows per-topic completion. ── */
+  function curriculumSummaryCompact(summary) {
+    if (!summary || !summary.enrolledCount) {
+      return `<div class="card card-pad"><div class="section-header"><span class="label-sm">Curriculum Progress</span></div>${dataPendingBlock("No curriculum enrollment on record.")}</div>`;
+    }
+    return `
+      <div class="card card-pad">
+        <div class="section-header"><span class="label-sm">Curriculum Progress</span><span class="label-xs">Coach Curriculum · Precision Coaching</span></div>
+        <div class="baseline-strip">
+          <div class="baseline-item"><span class="baseline-lbl">Enrolled</span><span class="baseline-val">${summary.enrolledCount} of ${summary.totalCoaches}</span></div>
+          <div class="baseline-item"><span class="baseline-lbl">Completed</span><span class="baseline-val">${summary.completedCount}</span></div>
+          <div class="baseline-item"><span class="baseline-lbl">On Time</span><span class="baseline-val">${summary.onTimeCount}</span></div>
+          <div class="baseline-item"><span class="baseline-lbl">Not Yet Started</span><span class="baseline-val">${summary.notStartedCount}</span></div>
+          <div class="baseline-item"><span class="baseline-lbl">Avg Progress</span><span class="baseline-val">${summary.avgProgressPct !== null ? summary.avgProgressPct + "%" : "—"}</span></div>
+        </div>
+      </div>`;
+  }
+
   window.COMPONENTS = {
-    icon, escapeHtml, badgeForScore, mappingBadge, overallScoreDisplay, coverageBadge,
-    kpiCard, targetBar, scoreCategoryDetail, coachCard, groupedCoachOptionsHtml, ICONS,
+    icon, escapeHtml, badgeForScore, mappingBadge, overallScoreDisplay, coverageBadge, dataPendingBlock,
+    kpiCard, targetBar, competencyBar, competencyCategoryDetail, evidenceRow, curriculumProgressCard, leadTotalsCard,
+    clubFilterOptionsHtml, coachCard, groupedCoachOptionsHtml, pillarEntryCard, curriculumSummaryCompact, ICONS,
   };
 })();

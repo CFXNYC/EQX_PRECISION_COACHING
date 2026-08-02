@@ -3,42 +3,60 @@
    ---------------------------------------------------------
    Pure functions only. No DOM access, no presentation strings.
    Reads from window.PRECISION_DATA and derives every number the
-   UI needs: the Three Ps (Production / Process / Persistence)
-   scores, coverage, club rollups, and org-wide aggregates.
+   UI needs: Performance / Programming / Professionalism scores,
+   coverage, club rollups, and org-wide aggregates.
 
-   THREE Ps SCORING MODEL
-   -----------------------
-   overall_score = production*0.50 + process*0.30 + persistence*0.20
+   COMPETENCY-BASED SCORING MODEL
+   -------------------------------
+   overall_score = performance*0.40 + programming*0.30 + professionalism*0.30
 
-   Every metric below is target-based: metric_score = min(actual/target, 1) * 100.
-   Only metrics with a documented, justified target are included in the
-   weighted score. Recurring Rate and Repurchase Rate are real, verified
-   source metrics but have NO documented target anywhere in the project
-   requirements — per hard rule, they are excluded from the weighted score
-   (shown everywhere as raw KPIs instead) rather than scored against an
-   invented threshold.
+   Every pillar score is computed ONLY from the 1-5 competency
+   ratings in danny_competencies_3ps.json (coach.evidence_sources.
+   competencies, attached in js/coach-performance-data.js), each
+   normalized via (value/5)*100. Raw KPIs (active_clients,
+   conversion_rate, eqfs_completed, repurchase_rate, etc.) are
+   EVIDENCE ONLY — displayed alongside each pillar, never scored,
+   never target-compared. This is a binding product decision, not
+   an oversight: there is no documented KPI target for this model,
+   and inventing one is explicitly disallowed.
 
-   Category assignment rationale:
-     Production  — the tangible business results a coach produces
-                   (Active Clients, Conversion Rate).
-     Process     — the specific coaching activities/workflow steps
-                   (Equifits booked, CPTs booked).
-     Persistence — sustained delivery/consistency over time
-                   (Sessions per month — the only documented target
-                   that fits "persistence").
+   Pillar → competency → evidence mapping (binding, from the
+   Skills Matrix — not a mechanical rename of any prior model):
+     Performance     (40%) — Engaging, Closing, Reframing
+                              evidence: Active Clients, Conversion, CPTs Completed
+     Programming     (30%) — Structure, Coaching, Recommendation
+                              evidence: SPU (no source field — always Data pending),
+                                        Program Repurchase Rate
+     Professionalism (30%) — Mindset, Elevator Pitch, Floor Presence
+                              evidence: Equifits Completed, Equifits Booked,
+                                        Leads Generated (club-level only — see
+                                        D.clubs[i].lead_totals, never per-coach)
 
    COVERAGE
    --------
-   Every category's metric weights sum to 1, so "coverage" for a category
-   is simply the sum of the weights of its AVAILABLE metrics. A metric is
-   unavailable when its real denominator is zero/undefined (e.g. no active
-   weeks yet, no equifits ever booked) — never because a value happens to
-   be a real zero. When a metric is unavailable, remaining weights within
-   its category are renormalized (score = weighted sum / available weight).
-   The same renormalization happens one level up across categories.
-   overall_coverage is NOT renormalized — it is the true fraction of the
-   full 100% weight that is backed by real data, and gates the 60% display
-   threshold (score_coverage.meets_threshold).
+   A pillar needs at least one available competency to be scored.
+   Competencies within a pillar are equal-weighted (no documented
+   basis for unequal sub-weights). A pillar with zero available
+   competencies is excluded from the overall weighted sum, and the
+   remaining pillars reweight to preserve the 40:30:30 *relative*
+   ratio — the same renormalization approach used throughout this
+   file, applied to competency coverage instead of KPI coverage.
+   overall_coverage is NOT renormalized — it is the true fraction
+   of the full 100% weight backed by real ratings, and gates the
+   60% display threshold (score_coverage.meets_threshold).
+   coverage_label ("6 of 9 competency inputs available") is a
+   separate, count-based figure — never derived from the weighted
+   percentage, which can read misleadingly against a raw count.
+
+   SCORE TIMING
+   ------------
+   Competency data is attached asynchronously by
+   js/coach-performance-data.js (Promise.allSettled fetches).
+   scoreAllCoaches() therefore does NOT run at this file's load
+   time — it runs once window.PRECISION_EVIDENCE_READY resolves,
+   exposed as window.PRECISION_SCORES_READY. app.js awaits that
+   promise before first render. KPI evidence (calculated_metrics)
+   has no such dependency and is computed synchronously below.
 ═══════════════════════════════════════════════════════════ */
 
 (function () {
@@ -50,10 +68,11 @@
   const COVERAGE_THRESHOLD = 0.60; // minimum overall_coverage to show a confident score
 
   const STATUS_BANDS = [
-    { min: 0,  max: 59,  label: "Needs Support", tone: "risk" },
-    { min: 60, max: 74,  label: "Developing",    tone: "foundation" },
-    { min: 75, max: 84,  label: "On Track",       tone: "momentum" },
-    { min: 85, max: 100, label: "Excelling",       tone: "standard" },
+    { min: 0,  max: 59,  label: "At Risk",                tone: "risk" },
+    { min: 60, max: 69,  label: "Building Foundation",     tone: "foundation" },
+    { min: 70, max: 79,  label: "Building Momentum",       tone: "momentum" },
+    { min: 80, max: 89,  label: "Delivering Results",      tone: "results" },
+    { min: 90, max: 100, label: "Setting The Standard",    tone: "standard" },
   ];
   function statusBandFor(score) {
     return STATUS_BANDS.find(b => score >= b.min && score <= b.max) || STATUS_BANDS[0];
@@ -69,88 +88,74 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     SCORING CONFIGURATION — single source of truth for every
-     target, weight, and category boundary in the Three Ps model.
+     COMPETENCY CONFIGURATION — single source of truth for every
+     pillar weight and competency→source-field mapping.
   ═══════════════════════════════════════════════════════════ */
-  const SCORING_CONFIG = {
-    weeksPerMonth: WEEKS_PER_MONTH,
-    coverageThreshold: COVERAGE_THRESHOLD,
-    production: {
-      weight: 0.50,
-      metrics: {
-        active_clients: {
-          label: "Active Clients",
-          weight: 0.5,
-          targetMin: 12, targetMax: 15, // confirmed target range: 12-15 active clients
-          unit: "clients",
-          available: (raw) => raw.active_clients !== null && raw.active_clients !== undefined,
-          actual: (raw, cm) => cm.active_clients,
-          // Within [min,max] scores 100. Below min scores proportionally.
-          // Above max is capped at 100 — no extra credit for exceeding the target band.
-          score: (v, cfg) => (v >= cfg.targetMin ? 100 : Math.min(v / cfg.targetMin, 1) * 100),
-        },
-        conversion_rate: {
-          label: "Conversion Rate",
-          weight: 0.5,
-          target: 0.45, // confirmed target: 45% Equifit → FTB conversion
-          unit: "%",
-          available: (raw) => (raw.conversion_eqfs || 0) > 0, // needs real opportunities to be meaningful
-          actual: (raw, cm) => cm.conversion_rate,
-          score: (v, cfg) => Math.min(v / cfg.target, 1) * 100,
-        },
+  const COMPETENCY_CONFIG = {
+    performance: {
+      weight: 0.40,
+      label: "Performance",
+      competencies: {
+        engaging:  { label: "Engaging",  sourceField: "PERFORMANCE | Engaging" },
+        closing:   { label: "Closing",   sourceField: "PERFORMANCE | Closing" },
+        reframing: { label: "Reframing", sourceField: "PERFORMANCE | Reframing" },
       },
     },
-    process: {
+    programming: {
       weight: 0.30,
-      metrics: {
-        equifits_per_month: {
-          label: "Equifits / Month",
-          weight: 0.5,
-          target: 12, // confirmed target: ~12 Equifits per month
-          unit: "/mo",
-          available: (raw) => (raw.active_weeks || 0) > 0,
-          actual: (raw, cm) => cm.equifits_per_month,
-          score: (v, cfg) => Math.min(v / cfg.target, 1) * 100,
-        },
-        cpt_per_week: {
-          label: "CPTs / Week",
-          weight: 0.5,
-          target: 3, // confirmed target: ~3 CPTs per week
-          unit: "/wk",
-          available: (raw) => (raw.active_weeks || 0) > 0,
-          actual: (raw, cm) => cm.cpt_per_week,
-          score: (v, cfg) => Math.min(v / cfg.target, 1) * 100,
-        },
+      label: "Programming",
+      competencies: {
+        structure:      { label: "Structure",      sourceField: "PROGRAMMING | Structure" },
+        coaching:       { label: "Coaching",       sourceField: "PROGRAMMING | Coaching" },
+        recommendation: { label: "Recommendation", sourceField: "PROGRAMMING | Recommendation" },
       },
     },
-    persistence: {
-      weight: 0.20,
-      metrics: {
-        sessions_per_month: {
-          label: "Sessions / Month",
-          weight: 1.0,
-          target: 90, // confirmed target: ~90 full-time sessions per month
-          unit: "/mo",
-          available: (raw) => (raw.active_weeks || 0) > 0,
-          actual: (raw, cm) => cm.sessions_per_month,
-          score: (v, cfg) => Math.min(v / cfg.target, 1) * 100,
-        },
+    professionalism: {
+      weight: 0.30,
+      label: "Professionalism",
+      competencies: {
+        mindset:       { label: "Mindset",         sourceField: "PROFESSIONALISM | Mindset" },
+        elevatorPitch: { label: "Elevator Pitch",  sourceField: "PROFESSIONALISM | Elevator Pitch" },
+        floorPresence: { label: "Floor Presence",  sourceField: "PROFESSIONALISM | Floor Presence" },
       },
-    },
-    // Verified, real source metrics with NO documented target — excluded from
-    // the weighted score by design (see file header). Surfaced as raw KPIs
-    // throughout the UI and used by the diagnosis engine via relative
-    // (org-average) comparison instead of an invented absolute threshold.
-    unscored_metrics: {
-      recurring_rate: { label: "Recurring Rate", reason: "no documented target — Recurring Clients / Active Clients" },
-      repurchase_rate: { label: "Repurchase Rate", reason: "no documented target — Repurchased / First-Time-Booked Clients" },
     },
   };
+  const PILLAR_KEYS = ["performance", "programming", "professionalism"];
+  const TOTAL_COMPETENCY_COUNT = PILLAR_KEYS.reduce((s, k) => s + Object.keys(COMPETENCY_CONFIG[k].competencies).length, 0); // 9
+
+  /* Evidence shown alongside each pillar — never scored, never
+     target-compared. SPU has no source field anywhere in the
+     supplied data and is a permanent "Data pending" line (binding
+     decision — do not invent a value or a proxy). Leads Generated
+     is deliberately absent here: it is club-level only (see
+     D.clubs[i].lead_totals) and must never be attached to an
+     individual coach. */
+  const EVIDENCE_CONFIG = {
+    performance: [
+      { key: "active_clients", label: "Active Clients", unit: "clients", get: (coach) => coach.calculated_metrics ? coach.calculated_metrics.active_clients : null },
+      { key: "conversion_rate", label: "Conversion Rate", unit: "%", get: (coach) => coach.calculated_metrics ? coach.calculated_metrics.conversion_rate : null },
+      { key: "cpts_completed", label: "CPTs Completed", unit: "", get: (coach) => coach.calculated_metrics ? coach.calculated_metrics.comppt_completed : null },
+    ],
+    programming: [
+      { key: "spu", label: "SPU (Sessions per Unit)", unit: "", alwaysPending: true, get: () => null },
+      { key: "program_repurchase_rate", label: "Program Repurchase Rate", unit: "%", get: (coach) => coach.calculated_metrics ? coach.calculated_metrics.repurchase_rate : null },
+    ],
+    professionalism: [
+      { key: "equifits_completed", label: "Equifits Completed", unit: "", get: (coach) => coach.calculated_metrics ? coach.calculated_metrics.eqfs_completed : null },
+      { key: "equifits_booked", label: "Equifits Booked", unit: "", get: (coach) => coach.calculated_metrics ? coach.calculated_metrics.eqfs_scheduled : null },
+    ],
+  };
+  function pillarEvidence(coach, pillarKey) {
+    return (EVIDENCE_CONFIG[pillarKey] || []).map((e) => {
+      const value = e.alwaysPending ? null : e.get(coach);
+      return { key: e.key, label: e.label, unit: e.unit, value, available: !e.alwaysPending && value !== null && value !== undefined };
+    });
+  }
 
   /* ═══════════════════════════════════════════════════════════
-     Raw KPI figures — always computed when raw_performance exists,
-     independent of scoring. This is what KPI Breakdown / Behavior
-     cards read from.
+     Raw KPI figures — evidence only, independent of scoring.
+     Computed synchronously (no dependency on the async evidence
+     join) so KPI Breakdown / Behavior cards never wait on it.
   ═══════════════════════════════════════════════════════════ */
   function buildCalculatedMetrics(raw) {
     const activeWeeks = raw.active_weeks || 0;
@@ -170,9 +175,6 @@
       // Repurchase Rate: source's repurchase_rate is verified to equal
       // repurchased_clients / ftb_clients.
       repurchase_rate: (raw.ftb_clients || 0) > 0 ? safeRate(raw.repurchase_rate) : null,
-      // Monthly/weekly normalization of cumulative totals, using each coach's
-      // own tenure-to-date (active_weeks) — needed to compare against the
-      // monthly/weekly coaching targets.
       equifits_per_month: monthsElapsed ? raw.eqfs_completed / monthsElapsed : null,
       cpt_per_week: activeWeeks > 0 ? raw.comppt_completed / activeWeeks : null,
       sessions_per_month: monthsElapsed ? raw.avg_weekly_sessions * WEEKS_PER_MONTH : null,
@@ -194,110 +196,118 @@
       job_desc: raw.job_desc,
     };
   }
+  // KPI evidence has no async dependency — compute it immediately for every
+  // coach so it's available regardless of when competency scoring resolves.
+  D.coaches.forEach((c) => { c.calculated_metrics = c.raw_performance ? buildCalculatedMetrics(c.raw_performance) : null; });
 
-  /* Core category scorer — takes a plain resolver map { metricKey: {available, actual} }
-     so it can score either a raw performance record (per coach) or a set of
-     already-aggregated org/club values (see scoreAggregateMetrics) with the
-     exact same weighting and renormalization logic. */
-  function scoreCategoryCore(categoryCfg, resolvers) {
-    const keys = Object.keys(categoryCfg.metrics);
-    let availableWeight = 0, weightedScoreSum = 0;
+  function round1(v) { return v !== null ? Math.round(v * 10) / 10 : null; }
+  function round2(v) { return Math.round(v * 100) / 100; }
+
+  /* Scores one pillar from a competency row (a real coach's evidence_sources.
+     competencies, or a synthetic averaged row from orgAggregateCompetencies —
+     same function either way). Competencies are equal-weighted within their
+     pillar; unavailable ones are excluded and the pillar's coverage/score
+     reweight over only the available competencies. */
+  function scoreCompetencyCategory(categoryCfg, competencyRow) {
+    const keys = Object.keys(categoryCfg.competencies);
+    const perWeight = 1 / keys.length;
+    let availableWeight = 0, weightedSum = 0, availableCount = 0;
     const detail = {};
     keys.forEach((key) => {
-      const m = categoryCfg.metrics[key];
-      const r = resolvers[key] || { available: false, actual: null };
-      let score = null;
-      if (r.available) {
-        score = m.score(r.actual, m);
-        availableWeight += m.weight;
-        weightedScoreSum += m.weight * score;
-      }
-      detail[key] = {
-        label: m.label, weight: m.weight, unit: m.unit,
-        target: m.target !== undefined ? m.target : { min: m.targetMin, max: m.targetMax },
-        actual: r.actual, score: score !== null ? Math.round(score * 10) / 10 : null, available: r.available,
-      };
+      const def = categoryCfg.competencies[key];
+      const raw = competencyRow ? competencyRow[def.sourceField] : undefined;
+      const available = raw !== null && raw !== undefined;
+      const normalized = available ? Math.max(0, Math.min(100, (raw / 5) * 100)) : null;
+      if (available) { availableWeight += perWeight; weightedSum += perWeight * normalized; availableCount++; }
+      detail[key] = { label: def.label, raw: available ? raw : null, normalized: round1(normalized), available };
     });
-    const coverage = availableWeight; // metric weights within a category sum to 1
-    const score = coverage > 0 ? weightedScoreSum / coverage : null;
-    return { score: score !== null ? Math.round(score * 10) / 10 : null, coverage, detail };
+    const coverage = availableWeight;
+    const score = coverage > 0 ? weightedSum / coverage : null;
+    return { score: round1(score), coverage, detail, availableCount, totalCount: keys.length };
   }
 
-  function scoreCategory(categoryCfg, raw, cm) {
-    const resolvers = {};
-    Object.keys(categoryCfg.metrics).forEach((key) => {
-      const m = categoryCfg.metrics[key];
-      const available = !!m.available(raw);
-      resolvers[key] = { available, actual: available ? m.actual(raw, cm) : null };
-    });
-    return scoreCategoryCore(categoryCfg, resolvers);
-  }
-
-  /* Combines the three category results into an overall score, coverage,
-     and performance band — shared by scoreCoach and scoreAggregateMetrics. */
-  function combineCategoryScores(prod, proc, pers) {
-    const categories = [
-      { weight: SCORING_CONFIG.production.weight, result: prod },
-      { weight: SCORING_CONFIG.process.weight, result: proc },
-      { weight: SCORING_CONFIG.persistence.weight, result: pers },
+  /* Combines the three pillar results into an overall score, coverage, and
+     status band — shared by scoreCoach and scoreAggregateCompetencies. */
+  function combineCompetencyScores(perf, prog, prof) {
+    const pillars = [
+      { weight: COMPETENCY_CONFIG.performance.weight, result: perf },
+      { weight: COMPETENCY_CONFIG.programming.weight, result: prog },
+      { weight: COMPETENCY_CONFIG.professionalism.weight, result: prof },
     ];
-    let overallCoverage = 0, availableCategoryWeight = 0, weightedSum = 0;
-    categories.forEach((c) => {
-      overallCoverage += c.weight * c.result.coverage;
-      if (c.result.score !== null) {
-        availableCategoryWeight += c.weight;
-        weightedSum += c.weight * c.result.score;
-      }
+    let overallCoverage = 0, availablePillarWeight = 0, weightedSum = 0;
+    pillars.forEach((p) => {
+      overallCoverage += p.weight * p.result.coverage;
+      if (p.result.score !== null) { availablePillarWeight += p.weight; weightedSum += p.weight * p.result.score; }
     });
-    const overallScoreRaw = availableCategoryWeight > 0 ? weightedSum / availableCategoryWeight : null;
+    const overallScoreRaw = availablePillarWeight > 0 ? weightedSum / availablePillarWeight : null;
     const meetsThreshold = overallCoverage >= COVERAGE_THRESHOLD && overallScoreRaw !== null;
     const overallScore = overallScoreRaw !== null ? Math.round(overallScoreRaw) : null;
+    const totalAvailable = perf.availableCount + prog.availableCount + prof.availableCount;
     return {
-      production_score: prod.score,
-      process_score: proc.score,
-      persistence_score: pers.score,
+      performance_score: perf.score,
+      programming_score: prog.score,
+      professionalism_score: prof.score,
       overall_score: overallScore,
       score_coverage: {
-        production_coverage: Math.round(prod.coverage * 100) / 100,
-        process_coverage: Math.round(proc.coverage * 100) / 100,
-        persistence_coverage: Math.round(pers.coverage * 100) / 100,
-        overall_coverage: Math.round(overallCoverage * 100) / 100,
+        performance_coverage: round2(perf.coverage),
+        programming_coverage: round2(prog.coverage),
+        professionalism_coverage: round2(prof.coverage),
+        overall_coverage: round2(overallCoverage),
         meets_threshold: meetsThreshold,
       },
-      score_detail: { production: prod.detail, process: proc.detail, persistence: pers.detail },
+      score_detail: { performance: perf.detail, programming: prog.detail, professionalism: prof.detail },
       performance_band: meetsThreshold ? statusBandFor(overallScore).label : null,
+      coverage_label: `${totalAvailable} of ${TOTAL_COMPETENCY_COUNT} competency inputs available`,
+      pillar_coverage_labels: {
+        performance: `${perf.availableCount} of ${perf.totalCount} competency inputs available`,
+        programming: `${prog.availableCount} of ${prog.totalCount} competency inputs available`,
+        professionalism: `${prof.availableCount} of ${prof.totalCount} competency inputs available`,
+      },
     };
+  }
+
+  /* Scores a single competency row (real or averaged) end to end. Shared by
+     scoreCoach (per-coach) and scoreAggregateCompetencies (org/club). */
+  function scoreCompetencyRow(row) {
+    if (!row) {
+      return {
+        performance_score: null, programming_score: null, professionalism_score: null, overall_score: null,
+        score_coverage: { performance_coverage: 0, programming_coverage: 0, professionalism_coverage: 0, overall_coverage: 0, meets_threshold: false },
+        score_detail: null,
+        performance_band: null,
+        coverage_label: `0 of ${TOTAL_COMPETENCY_COUNT} competency inputs available`,
+        pillar_coverage_labels: { performance: "0 of 3 competency inputs available", programming: "0 of 3 competency inputs available", professionalism: "0 of 3 competency inputs available" },
+      };
+    }
+    const perf = scoreCompetencyCategory(COMPETENCY_CONFIG.performance, row);
+    const prog = scoreCompetencyCategory(COMPETENCY_CONFIG.programming, row);
+    const prof = scoreCompetencyCategory(COMPETENCY_CONFIG.professionalism, row);
+    return combineCompetencyScores(perf, prog, prof);
   }
 
   /* ── Per-coach scoring ───────────────────────────────────────── */
   function scoreCoach(coach) {
-    const raw = coach.raw_performance;
-    if (!raw) {
-      return {
-        calculated_metrics: null,
-        production_score: null, process_score: null, persistence_score: null, overall_score: null,
-        score_coverage: { production_coverage: 0, process_coverage: 0, persistence_coverage: 0, overall_coverage: 0, meets_threshold: false },
-        score_detail: null,
-        performance_band: null,
-      };
-    }
-
-    const cm = buildCalculatedMetrics(raw);
-    const prod = scoreCategory(SCORING_CONFIG.production, raw, cm);
-    const proc = scoreCategory(SCORING_CONFIG.process, raw, cm);
-    const pers = scoreCategory(SCORING_CONFIG.persistence, raw, cm);
-
-    return { calculated_metrics: cm, ...combineCategoryScores(prod, proc, pers) };
+    const competencyRow = coach.evidence_sources ? coach.evidence_sources.competencies : null;
+    return scoreCompetencyRow(competencyRow);
   }
+
+  // "Has a competency score" means at least one of the 9 ratings is a real,
+  // non-null value — NOT merely that a competencies row was matched by
+  // email. A matched row whose 9 fields are all null (common today — see
+  // file header) produces overall_score === null, same as no row at all;
+  // checking overall_score here, rather than row presence, is what keeps
+  // "Data Coverage" honest instead of reporting every email-matched row as
+  // "covered."
+  function hasCompetencyScore(coach) { return coach.overall_score !== null && coach.overall_score !== undefined; }
 
   function scoreAllCoaches() {
     const bandCounts = {};
     STATUS_BANDS.forEach(b => { bandCounts[b.label] = 0; });
-    let insufficientCount = 0, noKpiCount = 0;
+    let insufficientCount = 0, noScoreCount = 0;
 
     D.coaches.forEach((coach) => {
       Object.assign(coach, scoreCoach(coach));
-      if (!coach.raw_performance) { noKpiCount++; return; }
+      if (!hasCompetencyScore(coach)) { noScoreCount++; return; }
       if (coach.score_coverage.meets_threshold) {
         bandCounts[statusBandFor(coach.overall_score).label]++;
       } else {
@@ -305,64 +315,173 @@
       }
     });
 
-    D.scoringConfig = SCORING_CONFIG;
+    D.scoringConfig = COMPETENCY_CONFIG;
     D.dataQuality.scoring_coverage_distribution = {
       by_band: bandCounts,
       insufficient_coverage_count: insufficientCount,
-      no_kpi_data_count: noKpiCount,
+      no_competency_data_count: noScoreCount,
     };
     /* eslint-disable no-console */
     console.groupCollapsed("%cPrecision Coaching — Scoring Coverage", "font-weight:bold");
-    console.log("Performance bands (reliably scored coaches):", bandCounts);
+    console.log("Status bands (reliably scored coaches):", bandCounts);
     console.log("Insufficient coverage (<60%):", insufficientCount);
-    console.log("No KPI data (not scored):", noKpiCount);
+    console.log("No competency data (not scored):", noScoreCount);
     console.groupEnd();
     /* eslint-enable no-console */
   }
-  scoreAllCoaches();
 
-  /* Scores an already-aggregated set of values (e.g. org-wide or club-wide
-     averages) against the same Three Ps targets used for individual coaches.
-     `values` is a plain object keyed by metric key — active_clients,
-     conversion_rate, equifits_per_month, cpt_per_week, sessions_per_month —
-     each either a number or null/undefined if unavailable. Used by the
-     Growth and Behavior pages to show an "All Coaches" aggregate view on
-     the exact same target-vs-actual bars as an individual coach. */
-  function scoreAggregateMetrics(values) {
-    function resolversFor(categoryCfg) {
-      const r = {};
-      Object.keys(categoryCfg.metrics).forEach((key) => {
-        const v = values[key];
-        r[key] = { available: v !== null && v !== undefined, actual: v };
+  // Competency data is attached asynchronously by coach-performance-data.js.
+  // Scoring must wait for that to resolve — see file header. Falls back to
+  // scoring immediately (all "Data pending") if the evidence promise is
+  // missing or rejects, rather than hanging the app.
+  const evidenceReady = (window.PRECISION_EVIDENCE_READY && typeof window.PRECISION_EVIDENCE_READY.then === "function")
+    ? window.PRECISION_EVIDENCE_READY
+    : Promise.resolve();
+  window.PRECISION_SCORES_READY = evidenceReady.catch(() => {}).then(() => { scoreAllCoaches(); });
+
+  /* Scores an already-averaged set of competency ratings (e.g. org-wide or
+     club-wide) against the same model used for individual coaches. `row` is
+     a plain object keyed by the same "PILLAR | Competency" source-field
+     strings used in danny_competencies_3ps.json — see orgAggregateCompetencies. */
+  function scoreAggregateCompetencies(row) { return scoreCompetencyRow(row); }
+
+  /* Average of each of the 9 raw (1-5) competency ratings across a coach
+     set, counting only coaches where that specific competency is available
+     — never zero-filling a missing rating. Produces a row shaped exactly
+     like a single competency source record so it can flow through the same
+     scoreCompetencyRow path as a real coach. */
+  function orgAggregateCompetencies(coaches) {
+    const fields = [];
+    PILLAR_KEYS.forEach((pk) => {
+      Object.values(COMPETENCY_CONFIG[pk].competencies).forEach((def) => fields.push(def.sourceField));
+    });
+    const sums = {}, counts = {};
+    fields.forEach((f) => { sums[f] = 0; counts[f] = 0; });
+    coaches.forEach((c) => {
+      const row = c.evidence_sources && c.evidence_sources.competencies;
+      if (!row) return;
+      fields.forEach((f) => {
+        const v = row[f];
+        if (v !== null && v !== undefined) { sums[f] += v; counts[f]++; }
       });
-      return r;
-    }
-    const prod = scoreCategoryCore(SCORING_CONFIG.production, resolversFor(SCORING_CONFIG.production));
-    const proc = scoreCategoryCore(SCORING_CONFIG.process, resolversFor(SCORING_CONFIG.process));
-    const pers = scoreCategoryCore(SCORING_CONFIG.persistence, resolversFor(SCORING_CONFIG.persistence));
-    return combineCategoryScores(prod, proc, pers);
+    });
+    const avgRow = {};
+    fields.forEach((f) => { avgRow[f] = counts[f] > 0 ? sums[f] / counts[f] : null; });
+    return avgRow;
+  }
+
+  /* Parses a coach's dynamic weekly KPI-period columns
+     ("<PERIOD LABEL> | <Metric>") into an ordered list of period objects.
+     Never hardcodes a period label — new weeks simply append new columns
+     upstream. Returns [] unless at least 2 periods have any non-null value
+     (binding rule: period-over-period only shown with 2+ valid periods). */
+  function kpiPeriods(coach) {
+    const row = coach.evidence_sources && coach.evidence_sources.kpi_tracking;
+    if (!row) return [];
+    const periods = new Map();
+    Object.keys(row).forEach((k) => {
+      const idx = k.lastIndexOf(" | ");
+      if (idx === -1) return; // email / role / club / hire_date, etc.
+      const periodLabel = k.slice(0, idx);
+      const metric = k.slice(idx + 3);
+      if (!periods.has(periodLabel)) periods.set(periodLabel, { periodLabel, conv_pct: null, ac: null, avg_weekly_session: null, pct_recurring_clients: null });
+      const bucket = periods.get(periodLabel);
+      const value = row[k];
+      if (metric === "Conv %") bucket.conv_pct = value;
+      else if (metric === "AC") bucket.ac = value;
+      else if (metric === "Avg Weekly Session") bucket.avg_weekly_session = value;
+      else if (metric === "% Recurring Clients") bucket.pct_recurring_clients = value;
+    });
+    const list = Array.from(periods.values());
+    const validPeriods = list.filter(p => [p.conv_pct, p.ac, p.avg_weekly_session, p.pct_recurring_clients].some(v => v !== null && v !== undefined));
+    return validPeriods.length >= 2 ? list : [];
+  }
+
+  /* Curriculum completion evidence — a coach can have multiple path rows
+     (coach.evidence_sources.curriculum is always an array). Completion is
+     inferred from learner_completion_date being set (no "Completed" status
+     string is confirmed present in the source's learner_status vocabulary). */
+  function curriculumProgress(coach) {
+    const rows = (coach.evidence_sources && coach.evidence_sources.curriculum) || [];
+    const paths = rows.map(r => ({
+      path_title: r.path_title, progress: r.progress, learner_status: r.learner_status,
+      due_date: r.due_date, learner_completion_date: r.learner_completion_date,
+    }));
+    return { paths, completedCount: paths.filter(p => !!p.learner_completion_date).length, totalCount: paths.length };
+  }
+
+  /* Aggregate curriculum status across a coach set — real data only. The
+     source (coach_curriculum_completion.json) has exactly one path per
+     coach with no per-week/per-topic breakdown, so this is a straight
+     roll-up of that single real record per coach, never a fabricated
+     per-topic completion state. Used by Overview's compact summary and
+     Programming's prominent aggregate curriculum block. */
+  function curriculumProgressSummary(coaches) {
+    let enrolledCount = 0, completedCount = 0, notStartedCount = 0, onTimeCount = 0, progressSum = 0, progressCount = 0;
+    coaches.forEach((c) => {
+      const cp = curriculumProgress(c);
+      if (!cp.totalCount) return;
+      enrolledCount++;
+      if (cp.completedCount > 0) completedCount++;
+      cp.paths.forEach((p) => {
+        if (p.progress !== null && p.progress !== undefined) { progressSum += p.progress; progressCount++; }
+        if (!p.learner_completion_date) {
+          if (p.learner_status === "Not yet started") notStartedCount++;
+          else if (p.learner_status === "On time") onTimeCount++;
+        }
+      });
+    });
+    return {
+      totalCoaches: coaches.length, enrolledCount, completedCount, notStartedCount, onTimeCount,
+      avgProgressPct: progressCount ? Math.round(progressSum / progressCount) : null,
+    };
+  }
+
+  /* Aggregate KPI-period trend (Conversion %) across a coach set — averages
+     each period's conv_pct across every coach that has a value for it, not
+     a per-coach series. Period order follows Map insertion order, which
+     follows the source's own column order (chronological — see
+     kpiPeriods() above). Returns [] unless 2+ periods have data, same
+     binding rule as the per-coach kpiPeriods(). Shared by Overview's
+     week-over-week card and Performance's aggregate trend chart, so both
+     pages compute this identically rather than duplicating the rollup. */
+  function orgConversionTrend(coaches) {
+    const byPeriod = new Map();
+    coaches.forEach((c) => {
+      (kpiPeriods(c) || []).forEach((p) => {
+        if (p.conv_pct === null || p.conv_pct === undefined) return;
+        if (!byPeriod.has(p.periodLabel)) byPeriod.set(p.periodLabel, { sum: 0, count: 0 });
+        const b = byPeriod.get(p.periodLabel);
+        b.sum += p.conv_pct; b.count++;
+      });
+    });
+    const periods = Array.from(byPeriod.entries()).map(([periodLabel, b]) => ({ periodLabel, conv_pct: round1(b.sum / b.count) }));
+    return periods.length >= 2 ? periods : [];
   }
 
   /* ── Lookups & coach-set helpers ─────────────────────────────── */
   // Every helper here draws from D.coaches — the single canonical, approved
   // (directory-controlled) coach collection built in data.js. There is no
-  // separate population for any tab: Overview, Growth, Behavior, and Coach
-  // all read through these same functions.
+  // separate population for any tab: Overview, Professionalism, Performance,
+  // Programming, and Coach all read through these same functions.
   function getCoach(coachId) { return D.coaches.find(c => c.coach_id === coachId); }
   function allApprovedCoaches() { return D.coaches; }
+  // "Matched" = has a KPI evidence record (pilot_coach_data.json). Independent
+  // of competency-score availability — a coach can have one without the other.
   function matchedCoaches() { return D.coaches.filter(c => !!c.raw_performance); }
   function noKpiDataCoaches() { return D.coaches.filter(c => !c.raw_performance); }
-  // "Scoreable" = approved coaches with a performance record to score.
-  function scoreableCoaches() { return matchedCoaches(); }
+  // "Scoreable" = approved coaches with at least one competency rating to score.
+  function scoreableCoaches() { return D.coaches.filter(c => hasCompetencyScore(c)); }
   function reliablyScored(coaches) { return coaches.filter(c => c.score_coverage && c.score_coverage.meets_threshold); }
 
   function sumField(rows, field) { return rows.reduce((s, r) => s + (r[field] || 0), 0); }
   function avgField(rows, field) { return rows.length ? sumField(rows, field) / rows.length : 0; }
 
-  /* Weighted org/club/coach-set aggregation of raw KPIs. Rates are aggregated
-     as (sum of numerators / sum of denominators), NOT as an average of each
-     coach's individual rate — averaging percentages directly would distort
-     the result whenever coaches have very different volumes. */
+  /* Weighted org/club/coach-set aggregation of raw KPIs — EVIDENCE ONLY,
+     never fed into scoring. Rates are aggregated as (sum of numerators /
+     sum of denominators), NOT as an average of each coach's individual
+     rate — averaging percentages directly would distort the result
+     whenever coaches have very different volumes. */
   function orgAggregateMetrics(coaches) {
     const withPerf = coaches.filter(c => c.raw_performance).map(c => c.raw_performance);
     const total = (fn) => withPerf.reduce((s, r) => s + (fn(r) || 0), 0);
@@ -404,26 +523,28 @@
       scored_count: scored.length,
       total_count: coaches.length,
       overall_score: avg(c => c.overall_score),
-      production_score: avg(c => c.production_score),
-      process_score: avg(c => c.process_score),
-      persistence_score: avg(c => c.persistence_score),
+      performance_score: avg(c => c.performance_score),
+      programming_score: avg(c => c.programming_score),
+      professionalism_score: avg(c => c.professionalism_score),
     };
   }
 
   /* ── Club rollups ────────────────────────────────────────────── */
+  // Ranked by competency-based overall_score among each club's scoreable
+  // (competency-rated) coaches — NOT by KPI-evidence availability.
   function clubRankings() {
     return D.clubs.map((club) => {
-      const clubMatched = matchedCoaches().filter(c => c.club_number === club.club_number);
-      const scored = reliablyScored(clubMatched);
+      const clubScoreable = scoreableCoaches().filter(c => c.club_number === club.club_number);
+      const scored = reliablyScored(clubScoreable);
       const avgScore = scored.length ? Math.round(scored.reduce((s, c) => s + c.overall_score, 0) / scored.length) : null;
-      const avgCoveragePct = clubMatched.length
-        ? Math.round((clubMatched.reduce((s, c) => s + (c.score_coverage ? c.score_coverage.overall_coverage : 0), 0) / clubMatched.length) * 100)
+      const avgCoveragePct = clubScoreable.length
+        ? Math.round((clubScoreable.reduce((s, c) => s + (c.score_coverage ? c.score_coverage.overall_coverage : 0), 0) / clubScoreable.length) * 100)
         : 0;
       return {
         club_number: club.club_number,
         club_name: club.club_name,
         roster_coach_count: club.coach_ids.length, // all approved coaches assigned to this club
-        matched_coach_count: clubMatched.length,    // of which, have performance data
+        scoreable_coach_count: clubScoreable.length, // of which, have at least one competency rating
         scored_coach_count: scored.length,
         avg_score: avgScore,
         avg_coverage_pct: avgCoveragePct,
@@ -443,12 +564,13 @@
   }
 
   window.CALC = {
-    SCORING_CONFIG, STATUS_BANDS, WEEKS_PER_MONTH, COVERAGE_THRESHOLD,
-    statusBandFor, getCoach,
-    allApprovedCoaches, matchedCoaches, noKpiDataCoaches, scoreableCoaches, reliablyScored,
+    COMPETENCY_CONFIG, EVIDENCE_CONFIG, STATUS_BANDS, WEEKS_PER_MONTH, COVERAGE_THRESHOLD,
+    statusBandFor, getCoach, pillarEvidence,
+    allApprovedCoaches, matchedCoaches, noKpiDataCoaches, scoreableCoaches, hasCompetencyScore, reliablyScored,
     sumField, avgField,
-    orgAggregateMetrics, orgAverageScores,
+    orgAggregateMetrics, orgAverageScores, orgAggregateCompetencies,
     clubRankings, performanceScoreDistribution,
-    scoreCoach, scoreAggregateMetrics,
+    scoreCoach, scoreAggregateCompetencies,
+    curriculumProgress, kpiPeriods, curriculumProgressSummary, orgConversionTrend,
   };
 })();
