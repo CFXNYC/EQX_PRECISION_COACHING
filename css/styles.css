@@ -568,6 +568,28 @@ svg { display: block; }
 .coach-card-mini-val { font-size: 12px; font-weight: 700; color: var(--off-black); }
 
 /* ═══════════════════════════════════════════════════════════
+   PILLAR ENTRY CARDS (Overview → Professionalism/Performance/
+   Programming). Accent color comes from the existing
+   --pillar-professionalism/--pillar-performance/--pillar-programming
+   tokens defined at :root.
+═══════════════════════════════════════════════════════════ */
+.pillar-entry-card {
+  background: var(--white); border: var(--border); border-radius: var(--radius);
+  padding: 20px 22px; cursor: pointer; position: relative;
+  border-top: 3px solid var(--light-gray);
+  transition: box-shadow 0.12s, border-color 0.12s;
+}
+.pillar-entry-card:hover { box-shadow: var(--shadow-lg); }
+.pillar-entry-professionalism { border-top-color: var(--pillar-professionalism); }
+.pillar-entry-performance { border-top-color: var(--pillar-performance); }
+.pillar-entry-programming { border-top-color: var(--pillar-programming); }
+.pillar-entry-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.pillar-entry-label { font-size: 13px; font-weight: 700; color: var(--black); }
+.pillar-entry-weight { font-size: 9px; color: var(--mid-gray); font-family: 'DM Mono', monospace; letter-spacing: 0.04em; white-space: nowrap; }
+.pillar-entry-score { font-size: 34px; font-weight: 700; letter-spacing: -1.3px; color: var(--off-black); line-height: 1; margin-bottom: 6px; }
+.pillar-entry-cta { font-size: 11px; font-weight: 600; color: var(--dark-gray); margin-top: 12px; font-family: 'DM Mono', monospace; }
+
+/* ═══════════════════════════════════════════════════════════
    FILTER BAR (Coach directory — search + club + status + band)
 ═══════════════════════════════════════════════════════════ */
 .filter-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
