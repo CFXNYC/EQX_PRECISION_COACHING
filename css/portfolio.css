@@ -209,8 +209,6 @@
 .l-pin { width: 13px; height: 18px; background: #1a1a1a; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .l-pin-dot { width: 5px; height: 5px; background: #fff; border-radius: 50%; transform: rotate(45deg); }
 .l-dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.2); flex-shrink: 0; }
-.l-ring { width: 14px; height: 14px; border-radius: 50%; border: 1.5px dashed #aaa; background: rgba(0,0,0,0.03); flex-shrink: 0; }
-.l-centroid { width: 7px; height: 7px; border-radius: 50%; background: #1a1a1a; flex-shrink: 0; box-shadow: 0 0 0 3px rgba(0,0,0,0.12); }
 
 #radius-section { padding: 12px 18px; }
 .radius-label { font-size: 8px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #bbb; margin-bottom: 6px; }
@@ -383,7 +381,6 @@
 #view-portfolio.dark .legend-item.is-clickable:hover,
 #view-portfolio.dark .legend-item.is-clickable:focus-visible { color: #f0f0f0; }
 #view-portfolio.dark .legend-item.is-clickable:focus-visible { outline-color: #f0f0f0; }
-#view-portfolio.dark .l-centroid { background: #f0f0f0; box-shadow: 0 0 0 3px rgba(255,255,255,0.12); }
 
 #view-portfolio.dark #radius-section { }
 #view-portfolio.dark .radius-label { color: #333; }
@@ -829,5 +826,11 @@ input[type=range].style-slider::-webkit-slider-thumb {
 #panel-metrics { text-align: center; margin-top: 4px; }
 .metric-row { font-size: 10px; color: #999; line-height: 1.7; letter-spacing: 0.04em; }
 .metric-row img { display: inline; vertical-align: text-bottom; margin: 0 1px; }
+.metric-row span.is-clickable { cursor: pointer; }
+.metric-row span.is-clickable:hover, .metric-row span.is-clickable:focus-visible { color: #1a1a1a; }
+.metric-row span.is-clickable:focus-visible { outline: 1.5px solid #1a1a1a; outline-offset: 2px; }
 .club-tag:not(.is-hub):hover .coachx-icon { filter: invert(1); }
 #view-portfolio.dark .metric-row { color: #555; }
+#view-portfolio.dark .metric-row span.is-clickable:hover,
+#view-portfolio.dark .metric-row span.is-clickable:focus-visible { color: #f0f0f0; }
+#view-portfolio.dark .metric-row span.is-clickable:focus-visible { outline-color: #f0f0f0; }
