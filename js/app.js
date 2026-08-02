@@ -20,11 +20,27 @@
     if (loadedEl) loadedEl.textContent = new Date(D.meta.loaded_at).toLocaleString();
   }
 
+  // On narrow viewports .primary-nav scrolls horizontally (css/styles.css)
+  // and 5 tabs don't all fit — without this the active tab (e.g. "Club
+  // Portfolio") can land partly off-screen with no visual cue a scroll
+  // exists. Centers the active tab within the nav's own scroll area only
+  // (nav.scrollTo, never window.scrollTo/scrollIntoView) so it never
+  // drags the page itself.
+  function scrollActiveTabIntoView() {
+    const nav = document.querySelector(".primary-nav");
+    const tab = document.querySelector(".nav-tab.active");
+    if (!nav || !tab) return;
+    const delta = tab.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+    const centeredDelta = delta - (nav.clientWidth - tab.clientWidth) / 2;
+    nav.scrollTo({ left: nav.scrollLeft + centeredDelta, behavior: "smooth" });
+  }
+
   function showView(name) {
     document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
     const target = document.getElementById("view-" + name);
     if (target) target.classList.add("active");
     document.querySelectorAll(".nav-tab").forEach(t => t.classList.toggle("active", t.dataset.view === name));
+    scrollActiveTabIntoView();
     window.scrollTo(0, 0);
     // The Club Portfolio's Leaflet map is initialized once at boot while this
     // tab is display:none (see styles.css ".view"), so it needs an explicit
