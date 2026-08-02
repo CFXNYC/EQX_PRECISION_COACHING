@@ -100,6 +100,29 @@
     });
   }
 
+  // Sidebar list (#panel-content, below the search bar) is never filtered
+  // down to one macro in globe mode — it always shows every region, same
+  // as the Leaflet map's own ALL view (see this file's header note on why
+  // camera + panel state are owned here). So the only way a macro filter
+  // click actually helps the user find that market's clubs is by sliding
+  // the existing list to the matching section, instead of narrowing it.
+  function scrollSidebarToMacro(macro) {
+    const container = document.getElementById("panel-content");
+    if (!container) return;
+    if (macro === "ALL") {
+      container.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    const section = document.getElementById(`macro-section-${macro}`);
+    if (!section) return;
+    // Manual scrollTop math (not section.scrollIntoView) — scrollIntoView
+    // walks every scrollable ancestor, including the outer page, which
+    // visibly shifted the fixed topbar/tabs out of view in testing. This
+    // only ever touches #panel-content's own scroll position.
+    const delta = section.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    container.scrollTo({ top: container.scrollTop + delta, behavior: "smooth" });
+  }
+
   // Mirrors render-portfolio.js's activateRegion(): highlight the region's
   // sidebar card, deactivate whichever was previously active, scroll the
   // new one into view, and write the same "NAME — X.X MI" active-cluster
@@ -160,6 +183,7 @@
       if (bounds) m.fitBounds(bounds, { padding: mapPadding(), duration: duration(850), maxZoom: 8 });
     }
     updateFilterButtonsUI(macro);
+    scrollSidebarToMacro(macro);
   }
 
   // ── PUBLIC: fly to one region's bounds (sidebar region-card click) —

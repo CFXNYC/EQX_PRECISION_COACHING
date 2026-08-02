@@ -34,18 +34,27 @@
   // globe-data-adapter.js's header note), so this list and the on-map P
   // marker always agree — the old 10-club-roster-vs-9-entry-allowlist
   // discrepancy (Anthem Row) no longer exists.
-  function clubsWhere(predicate) {
+  // badgeFn picks what renders on the right of each flyout row — the
+  // club_id for the P/H/O tiers (unchanged), or a per-club headcount for
+  // the EFTI Educators / Coach X flyouts (badge = the very count that
+  // makes that club match the filter).
+  function clubsWhere(predicate, badgeFn) {
     if (!root.GLOBE_DATA) return [];
     const fc = root.GLOBE_DATA.toGeoJSON();
     return fc.features
       .filter((f) => predicate(f.properties))
-      .map((f) => ({ name: f.properties.name, clubId: f.properties.clubId }))
+      .map((f) => ({ name: f.properties.name, badge: badgeFn ? badgeFn(f.properties) : f.properties.clubId }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   const getPrecisionClubs = () => clubsWhere((p) => p.isPilotClub);
   const getHubClubs = () => clubsWhere((p) => p.isHub);
   const getStandardClubs = () => clubsWhere((p) => !p.isPilotClub && !p.isHub);
+  // educatorCount / coachX are the same club_map_data.json-sourced fields
+  // the EFTI EDUCATORS / COACHX header totals sum (render-portfolio.js's
+  // hydrateMap), so these lists always reconcile with those numbers.
+  const getEftiEducatorClubs = () => clubsWhere((p) => p.educatorCount > 0, (p) => String(p.educatorCount));
+  const getCoachXClubs = () => clubsWhere((p) => p.coachX > 0, (p) => String(p.coachX));
 
   function closeFlyout() {
     if (_flyout) { _flyout.remove(); _flyout = null; }
@@ -98,7 +107,7 @@
       `<div class="legend-flyout-list">${clubs.map((c) =>
         `<div class="legend-flyout-item" data-name="${escapeHtml(c.name)}">` +
           `<span>${escapeHtml(c.name)}</span>` +
-          (c.clubId ? `<span class="legend-flyout-id">${escapeHtml(c.clubId)}</span>` : "") +
+          (c.badge ? `<span class="legend-flyout-id">${escapeHtml(c.badge)}</span>` : "") +
         `</div>`
       ).join("")}</div>`;
 
@@ -153,6 +162,11 @@
     // Optional per spec ("if clean to implement") — same pattern, EQX/O tier.
     wireLegendItem("legend-sat", getStandardClubs, "Standard Clubs");
     wireLegendItem("mob-legend-sat", getStandardClubs, "Standard Clubs");
+    // Panel-header stat rows (#stat-pte / #stat-coach-x) — not .legend-item
+    // rows, but wireLegendItem only needs an id to attach to; the flyout
+    // and its click-outside/Escape handling are identical.
+    wireLegendItem("stat-pte", getEftiEducatorClubs, "EFTI Educators");
+    wireLegendItem("stat-coach-x", getCoachXClubs, "Coach X");
   }
 
   root.GLOBE_LEGEND = { init, closeFlyout };

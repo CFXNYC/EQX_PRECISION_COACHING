@@ -85,7 +85,6 @@
     <div id="topbar-divider"></div>
     <span id="topbar-title">Club Portfolio</span>
     <div id="topbar-spacer"></div>
-    <div id="topbar-meta">EFTI Education Rollout &nbsp;|&nbsp; Strategic Visualization &nbsp;|&nbsp; <span id="portfolio-data-status">Loading…</span></div>
   </div>
 
   <div id="main">
@@ -97,8 +96,6 @@
         <div class="legend-item" id="mob-legend-p"><span>Precision Club</span></div>
         <div class="legend-item" id="mob-legend-hub"><span>Hub Club</span></div>
         <div class="legend-item" id="mob-legend-sat"><span>EQX Club</span></div>
-        <div class="legend-item"><div class="l-ring"></div><span>Cluster Perimeter</span></div>
-        <div class="legend-item"><div class="l-centroid"></div><span>Computed Center</span></div>
       </div>
     </div>
 
@@ -150,8 +147,6 @@
             <div class="legend-item" id="legend-p"><span>Precision Club</span></div>
             <div class="legend-item" id="legend-hub"><span>Hub Club</span></div>
             <div class="legend-item" id="legend-sat"><span>EQX Club</span></div>
-            <div class="legend-item"><div class="l-ring"></div><span>Cluster Perimeter</span></div>
-            <div class="legend-item"><div class="l-centroid"></div><span>Computed Center</span></div>
           </div>
         </div>
         <div id="radius-section">
@@ -174,38 +169,10 @@
   </div>
 
   <div class="style-section">
-    <div class="style-section-title">Map</div>
-    <div class="style-row">
-      <div class="style-row-label">Brightness <span id="val-brightness">1.0</span></div>
-      <input type="range" id="sl-brightness" class="style-slider" min="0.1" max="2" step="0.05" value="1" oninput="applyMapFilter(this)">
-    </div>
-    <div class="style-row">
-      <div class="style-row-label">Contrast <span id="val-contrast">1.0</span></div>
-      <input type="range" id="sl-contrast" class="style-slider" min="0.3" max="2.5" step="0.05" value="1" oninput="applyMapFilter(this)">
-    </div>
-    <div class="style-row">
-      <div class="style-row-label">Saturation <span id="val-saturation">1.0</span></div>
-      <input type="range" id="sl-saturation" class="style-slider" min="0" max="2" step="0.05" value="1" oninput="applyMapFilter(this)">
-    </div>
-  </div>
-
-  <div class="style-section">
     <div class="style-section-title">UI Panel</div>
     <div class="style-row">
       <div class="style-row-label">Brightness <span id="val-panel-bright">1.0</span></div>
       <input type="range" id="sl-panel-bright" class="style-slider" min="0.3" max="1.6" step="0.05" value="1" oninput="applyPanelFilter(this)">
-    </div>
-  </div>
-
-  <div class="style-section">
-    <div class="style-section-title">Presets</div>
-    <div class="preset-grid">
-      <button class="preset-btn" data-preset="default-light"  onclick="applyPreset('default-light')">Default Light</button>
-      <button class="preset-btn" data-preset="high-contrast"  onclick="applyPreset('high-contrast')">Hi Contrast</button>
-      <button class="preset-btn" data-preset="minimal"        onclick="applyPreset('minimal')">Minimal</button>
-      <button class="preset-btn" data-preset="warm"           onclick="applyPreset('warm')">Warm</button>
-      <button class="preset-btn" data-preset="default-dark"   onclick="applyPreset('default-dark')">Default Dark</button>
-      <button class="preset-btn" data-preset="deep-dark"      onclick="applyPreset('deep-dark')">Deep Dark</button>
     </div>
   </div>
 
@@ -681,7 +648,7 @@
     let html = '';
     MACRO_ORDER.forEach(macro => {
       if (filter !== 'ALL' && filter !== macro) return;
-      html += `<div class="macro-header"><span class="macro-pip" style="background:${LIVE_COLORS[macro]}"></span>${MACRO_LABELS[macro]}</div>`;
+      html += `<div class="macro-header" id="macro-section-${macro}"><span class="macro-pip" style="background:${LIVE_COLORS[macro]}"></span>${MACRO_LABELS[macro]}</div>`;
       REGIONS.filter(r=>r.macro===macro).forEach(region => {
         const layer = regionLayers[region.id];
         const n     = layer ? layer.matched.length : 0;
@@ -777,6 +744,7 @@
       btn.classList.toggle('active', btn.dataset.macro === macro);
     });
     renderSidebar(macro);
+    document.getElementById('panel-content')?.scrollTo({ top: 0, behavior: 'smooth' });
     if (macro !== 'ALL') {
       const coords = REGIONS.filter(r=>r.macro===macro).flatMap(r=>r.clubs.map(c=>COORDS[c]).filter(Boolean));
       if (coords.length) map.flyToBounds(L.latLngBounds(coords).pad(0.15),{animate:true,duration:0.85,maxZoom:13});
@@ -836,9 +804,6 @@
       btn.style.background = '#f0f0f0';
       btn.style.color = '#0a0a0a';
       btn.style.borderColor = 'transparent';
-      // Update satellite button for dark context
-      const sbtn = document.getElementById('basemap-btn');
-      if (sbtn) { sbtn.style.background = '#1a1a1a'; sbtn.style.color = '#888'; sbtn.style.borderColor = '#333'; }
     } else {
       // Switch basemap back to street (unless satellite is active)
       if (currentBasemap === 'dark') {
@@ -855,9 +820,6 @@
       btn.style.background = '#fff';
       btn.style.color = '#1a1a1a';
       btn.style.borderColor = '#444';
-      // Restore satellite button for light context
-      const sbtn = document.getElementById('basemap-btn');
-      if (sbtn) { sbtn.style.background = '#fff'; sbtn.style.color = '#1a1a1a'; sbtn.style.borderColor = '#444'; }
     }
     saveSettings();
   };
@@ -874,52 +836,6 @@
     transition: 'all 0.12s', flexShrink: '0'
   });
   document.getElementById('topbar').appendChild(darkBtn);
-
-  // ── BASEMAP TOGGLE ─────────────────────────────────────────
-  window.toggleBasemap = function() {
-    const btn = document.getElementById('basemap-btn');
-    if (currentBasemap !== 'satellite') {
-      // Go to satellite
-      map.removeLayer(basemaps[currentBasemap]);
-      basemaps.satellite.addTo(map);
-      radiusLayer.bringToFront();
-      centroidLayer.bringToFront();
-      clusterGroup.bringToFront();
-      currentBasemap = 'satellite';
-      btn.textContent = 'Street View';
-      btn.style.background = '#2EC4B6';
-      btn.style.color = '#fff';
-      btn.style.borderColor = 'transparent';
-    } else {
-      // Return to street or dark depending on mode
-      map.removeLayer(basemaps.satellite);
-      const returnMap = isDark ? 'dark' : 'street';
-      basemaps[returnMap].addTo(map);
-      radiusLayer.bringToFront();
-      centroidLayer.bringToFront();
-      clusterGroup.bringToFront();
-      currentBasemap = returnMap;
-      btn.textContent = 'Satellite View';
-      if (isDark) {
-        btn.style.background = '#1a1a1a'; btn.style.color = '#888'; btn.style.borderColor = '#333';
-      } else {
-        btn.style.background = '#fff'; btn.style.color = '#1a1a1a'; btn.style.borderColor = '#444';
-      }
-    }
-  };
-
-  const toggleBtn = document.createElement('button');
-  toggleBtn.id = 'basemap-btn';
-  toggleBtn.textContent = 'Satellite View';
-  toggleBtn.onclick = toggleBasemap;
-  Object.assign(toggleBtn.style, {
-    padding: '5px 14px', fontSize: '9px', fontWeight: '700',
-    letterSpacing: '0.09em', textTransform: 'uppercase',
-    border: '1px solid #444', background: '#fff', color: '#1a1a1a',
-    cursor: 'pointer', borderRadius: '1px', fontFamily: 'Arial, sans-serif',
-    transition: 'all 0.12s', flexShrink: '0'
-  });
-  document.getElementById('topbar').appendChild(toggleBtn);
 
   // ── MOBILE PANEL DRAG ──────────────────────────────────────
   (function initPanelDrag() {
@@ -1200,6 +1116,7 @@
     const bEl = document.getElementById('sl-brightness');
     const cEl = document.getElementById('sl-contrast');
     const sEl = document.getElementById('sl-saturation');
+    if (!bEl || !cEl || !sEl) return;
     syncSlider(bEl, 'val-brightness');
     syncSlider(cEl, 'val-contrast');
     syncSlider(sEl, 'val-saturation');
@@ -1216,57 +1133,11 @@
     saveSettings();
   };
 
-  // Set all sliders programmatically and apply
-  function setSliders(b, c, s, p) {
-    const set = (id, v) => {
-      const el = document.getElementById(id);
-      el.value = v;
-      syncSlider(el, el.id.replace('sl-', 'val-').replace('sl-panel-bright','val-panel-bright'));
-    };
-    document.getElementById('sl-brightness').value = b;
-    document.getElementById('sl-contrast').value = c;
-    document.getElementById('sl-saturation').value = s;
-    document.getElementById('sl-panel-bright').value = p;
-    syncSlider(document.getElementById('sl-brightness'), 'val-brightness');
-    syncSlider(document.getElementById('sl-contrast'), 'val-contrast');
-    syncSlider(document.getElementById('sl-saturation'), 'val-saturation');
-    syncSlider(document.getElementById('sl-panel-bright'), 'val-panel-bright');
-    applyMapFilter();
-    applyPanelFilter();
-  }
-
-  // Preset configurations: [brightness, contrast, saturation, panelBrightness, dark?]
-  const PRESETS = {
-    'default-light':  [1.0, 1.0, 1.0, 1.0, false],
-    'high-contrast':  [1.05, 1.7, 0.7, 1.0, false],
-    'minimal':        [1.2,  0.65, 0.0, 1.05, false],
-    'warm':           [1.05, 1.1, 1.4, 1.0, false],
-    'default-dark':   [1.0, 1.0, 1.0, 1.0, true],
-    'deep-dark':      [0.65, 1.3, 0.5, 0.75, true],
-  };
-  window.applyPreset = function(name) {
-    const p = PRESETS[name];
-    if (!p) return;
-    const [b, c, s, panel, dark] = p;
-    // Sync dark mode state
-    if (dark && !isDark) toggleDarkMode();
-    else if (!dark && isDark) toggleDarkMode();
-    // Apply slider values
-    setSliders(b, c, s, panel);
-    // Highlight active preset button
-    document.querySelectorAll('.preset-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.preset === name);
-    });
-  };
-
   // Init all sliders with correct fill on load
-  ['sl-brightness','sl-contrast','sl-saturation','sl-panel-bright','sl-hub-size','sl-club-size'].forEach(id => {
+  ['sl-panel-bright','sl-hub-size','sl-club-size'].forEach(id => {
     const el = document.getElementById(id);
     if (el) syncSlider(el, null);
   });
-  syncSlider(document.getElementById('sl-brightness'),  'val-brightness');
-  syncSlider(document.getElementById('sl-contrast'),     'val-contrast');
-  syncSlider(document.getElementById('sl-saturation'),   'val-saturation');
   syncSlider(document.getElementById('sl-panel-bright'), 'val-panel-bright');
 
   // Add Style button to topbar
@@ -1573,7 +1444,7 @@
     // without needing a transparent PNG.
     const pHTML = `<div style="width:20px;height:20px;border-radius:50%;background:#fff;border:2.5px solid #555;box-shadow:0 1px 5px rgba(0,0,0,0.22);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="img/eqx-p-logo-black-on-white.png" style="width:17px;height:17px;display:block;mix-blend-mode:multiply;"></div><span>Precision Club</span>`;
     const hubHTML = `<div style="width:20px;height:20px;border-radius:50%;background:#fff;border:2.5px solid #555;box-shadow:0 1px 5px rgba(0,0,0,0.22);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="${HUB_ICON}" style="width:17px;height:17px;display:block;mix-blend-mode:multiply;"></div><span>Hub Club</span>`;
-    const satHTML = `<div style="width:14px;height:14px;border-radius:50%;background:#fff;border:1.5px solid #888;box-shadow:0 1px 3px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="${CLUB_ICON}" style="width:11px;height:11px;display:block;mix-blend-mode:multiply;"></div><span>EQX Club</span>`;
+    const satHTML = `<div style="width:20px;height:20px;border-radius:50%;background:#fff;border:2.5px solid #555;box-shadow:0 1px 5px rgba(0,0,0,0.22);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;"><img src="${CLUB_ICON}" style="width:17px;height:17px;display:block;mix-blend-mode:multiply;"></div><span>EQX Club</span>`;
     ['legend-p','mob-legend-p'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = pHTML; });
     ['legend-hub','mob-legend-hub'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = hubHTML; });
     ['legend-sat','mob-legend-sat'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = satHTML; });
