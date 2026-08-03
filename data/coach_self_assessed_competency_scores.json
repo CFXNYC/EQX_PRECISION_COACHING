@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0",
+  "dataset": "coach_self_assessed_competency_scores",
+  "generated_at": "2026-08-03T23:30:00.000Z",
+  "source": {
+    "workbook": "Precision Coaching Dashboard - SOURCE OF TRUTH.xlsx",
+    "worksheet": "COACH_COMPETENCY_RESPONSES"
+  },
+  "scoring": {
+    "performance_weight": 0.5,
+    "professionalism_weight": 0.3,
+    "programming_weight": 0.2,
+    "assessment_scale": "1-5",
+    "dashboard_score_scale": "0-100"
+  },
+  "record_count": 3,
+  "records": [
+    {
+      "employee_id": "TEST-10001",
+      "coach_name": "Sample Coach Strong",
+      "home_club": "105 E 63rd Street",
+      "assessment_date": "2026-08-03T09:00:00.000Z",
+      "competencies": {
+        "performance": { "engaging": 5, "closing": 4, "reframing": 4, "score": 87 },
+        "professionalism": { "mindset": 5, "elevator_pitch": 4, "floor_presence": 5, "score": 93 },
+        "programming": { "structure": 4, "coaching": 4, "recommendation": 4, "score": 80 }
+      },
+      "overall_competency_score": 88,
+      "primary_development_pillar": "Programming",
+      "source_response": {
+        "Timestamp": "2026-08-03T09:00:00.000Z",
+        "Employee ID": "TEST-10001"
+      }
+    },
+    {
+      "employee_id": "TEST-10002",
+      "coach_name": "Sample Coach Growth",
+      "home_club": "109 E 44th Street",
+      "assessment_date": "2026-08-03T09:05:00.000Z",
+      "competencies": {
+        "performance": { "engaging": 3, "closing": 2, "reframing": 3, "score": 53 },
+        "professionalism": { "mindset": 4, "elevator_pitch": 4, "floor_presence": 3, "score": 73 },
+        "programming": { "structure": 4, "coaching": 3, "recommendation": 4, "score": 73 }
+      },
+      "overall_competency_score": 64,
+      "primary_development_pillar": "Performance",
+      "source_response": {
+        "Timestamp": "2026-08-03T09:05:00.000Z",
+        "Employee ID": "TEST-10002"
+      }
+    },
+    {
+      "employee_id": "TEST-10003",
+      "coach_name": "Sample Coach Foundation",
+      "home_club": "713 Sports Club LA",
+      "assessment_date": "2026-08-03T09:10:00.000Z",
+      "competencies": {
+        "performance": { "engaging": 3, "closing": 3, "reframing": 2, "score": 53 },
+        "professionalism": { "mindset": 3, "elevator_pitch": 2, "floor_presence": 3, "score": 53 },
+        "programming": { "structure": 2, "coaching": 3, "recommendation": 2, "score": 47 }
+      },
+      "overall_competency_score": 52,
+      "primary_development_pillar": "Programming",
+      "source_response": {
+        "Timestamp": "2026-08-03T09:10:00.000Z",
+        "Employee ID": "TEST-10003"
+      }
+    }
+  ]
+}
