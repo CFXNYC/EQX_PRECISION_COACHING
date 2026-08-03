@@ -563,6 +563,183 @@
     return buckets;
   }
 
+  /* ═══════════════════════════════════════════════════════════
+     PER-COACH AVERAGE / RANKED KPI CARDS
+     ---------------------------------------------------------
+     "Portfolio average" = arithmetic mean of each eligible coach's
+     own rate/value — NOT a total-over-total rollup (that already
+     exists as orgAggregateMetrics' sum-of-numerators approach,
+     used where a portfolio TOTAL is the right measure). These
+     functions back the Overview/Professionalism/Performance
+     "Average X / Coach" cards and their ranking modals. `coaches`
+     is always the caller's already club/market-filtered pool —
+     these never re-derive a filter of their own, so a selected
+     club recalculates every card and modal list that reads
+     through them.
+  ═══════════════════════════════════════════════════════════ */
+  function coachClubName(coach) {
+    const club = D.clubs.find(cl => cl.club_number === coach.club_number);
+    return (club && club.club_name) || coach.club_name || "—";
+  }
+
+  /* Average Coach Conversion Rate — mean of each eligible coach's own
+     conversion_rate, eligibility gated on conversion_eqfs > 0 (same gate
+     buildCalculatedMetrics already applies before setting conversion_rate,
+     so "eligible" here is simply "calculated_metrics.conversion_rate is
+     not null"). Never total-conversions / total-opportunities. */
+  function avgCoachConversionRate(coaches) {
+    const matched = coaches.filter(c => !!c.raw_performance);
+    const rows = matched
+      .filter(c => c.calculated_metrics && c.calculated_metrics.conversion_rate !== null && c.calculated_metrics.conversion_rate !== undefined)
+      .map(c => ({
+        coach_id: c.coach_id, display_name: c.display_name, club_name: coachClubName(c),
+        conversion_rate: c.calculated_metrics.conversion_rate,
+        conversion_eqfs: c.raw_performance.conversion_eqfs,
+        ftbs_generated: c.raw_performance.ftbs_generated,
+      }))
+      .sort((a, b) => b.conversion_rate - a.conversion_rate);
+    const average = rows.length ? rows.reduce((s, r) => s + r.conversion_rate, 0) / rows.length : null;
+    return { average, eligibleCount: rows.length, matchedCount: matched.length, rows };
+  }
+
+  /* Average Active Clients / Coach — total active_clients across matched
+     coaches divided by the matched coach count (not by every approved
+     coach — a coach with no KPI evidence record has no active_clients
+     figure to average in). */
+  function avgActiveClientsPerCoach(coaches) {
+    const matched = coaches.filter(c => !!c.raw_performance);
+    const rows = matched
+      .map(c => ({ coach_id: c.coach_id, display_name: c.display_name, club_name: coachClubName(c), active_clients: c.calculated_metrics.active_clients }))
+      .sort((a, b) => (b.active_clients || 0) - (a.active_clients || 0));
+    const total = rows.reduce((s, r) => s + (r.active_clients || 0), 0);
+    const average = matched.length ? total / matched.length : null;
+    return { average, total, matchedCount: matched.length, rows };
+  }
+
+  /* Average Recurring Client Rate — mean of each eligible coach's own
+     recurring_rate, eligibility gated on active_clients > 0 (the same
+     gate buildCalculatedMetrics already applies). Never total-recurring
+     / total-active. */
+  function avgRecurringClientRate(coaches) {
+    const matched = coaches.filter(c => !!c.raw_performance);
+    const rows = matched
+      .filter(c => c.calculated_metrics && c.calculated_metrics.recurring_rate !== null && c.calculated_metrics.recurring_rate !== undefined)
+      .map(c => ({
+        coach_id: c.coach_id, display_name: c.display_name, club_name: coachClubName(c),
+        recurring_clients: c.calculated_metrics.recurring_clients,
+        active_clients: c.calculated_metrics.active_clients,
+        recurring_rate: c.calculated_metrics.recurring_rate,
+      }))
+      .sort((a, b) => b.recurring_rate - a.recurring_rate);
+    const average = rows.length ? rows.reduce((s, r) => s + r.recurring_rate, 0) / rows.length : null;
+    return { average, eligibleCount: rows.length, matchedCount: matched.length, rows };
+  }
+
+  /* Average Equifits Completed / Coach — cumulative-to-date total across
+     matched coaches divided by matched coach count. */
+  function avgEqfsCompletedPerCoach(coaches) {
+    const matched = coaches.filter(c => !!c.raw_performance);
+    const rows = matched
+      .map(c => ({ coach_id: c.coach_id, display_name: c.display_name, club_name: coachClubName(c), eqfs_completed: c.calculated_metrics.eqfs_completed }))
+      .sort((a, b) => (b.eqfs_completed || 0) - (a.eqfs_completed || 0));
+    const total = rows.reduce((s, r) => s + (r.eqfs_completed || 0), 0);
+    const average = matched.length ? total / matched.length : null;
+    return { average, total, matchedCount: matched.length, rows };
+  }
+
+  /* Average CPTs Completed / Coach — same shape as Equifits above. */
+  function avgComppCompletedPerCoach(coaches) {
+    const matched = coaches.filter(c => !!c.raw_performance);
+    const rows = matched
+      .map(c => ({ coach_id: c.coach_id, display_name: c.display_name, club_name: coachClubName(c), comppt_completed: c.calculated_metrics.comppt_completed }))
+      .sort((a, b) => (b.comppt_completed || 0) - (a.comppt_completed || 0));
+    const total = rows.reduce((s, r) => s + (r.comppt_completed || 0), 0);
+    const average = matched.length ? total / matched.length : null;
+    return { average, total, matchedCount: matched.length, rows };
+  }
+
+  /* Equifits Booked (eqfs_scheduled) — the source carries this field for
+     the matched population; only falls back to "Data pending" (never 0)
+     if genuinely no coach in the current pool has a value for it. */
+  function eqfsBookedSummary(coaches) {
+    const matched = coaches.filter(c => !!c.raw_performance);
+    const rows = matched
+      .filter(c => c.calculated_metrics && c.calculated_metrics.eqfs_scheduled !== null && c.calculated_metrics.eqfs_scheduled !== undefined)
+      .map(c => ({
+        coach_id: c.coach_id, display_name: c.display_name, club_name: coachClubName(c),
+        eqfs_scheduled: c.calculated_metrics.eqfs_scheduled,
+        eqfs_completed: c.calculated_metrics.eqfs_completed,
+      }))
+      .sort((a, b) => b.eqfs_scheduled - a.eqfs_scheduled);
+    const total = rows.reduce((s, r) => s + r.eqfs_scheduled, 0);
+    return { total, availableCount: rows.length, matchedCount: matched.length, rows };
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     KPI PERFORMANCE INDEX
+     ---------------------------------------------------------
+     A KPI-evidence-only performance index, entirely separate from
+     the competency-based Performance/Programming/Professionalism
+     score. Never substitutes for missing competency ratings and is
+     never merged into overall_score. Five equal-weighted inputs,
+     each scored against its approved target (capped at 100 — over-
+     target performance doesn't inflate the index further):
+       - Active Clients / Coach        target range 12–15
+       - Coach Conversion Rate          target 45%
+       - Equifits / Coach / Month       target 12
+       - CPTs / Coach / Week            target 3
+       - Sessions / Coach / Month       target 90
+     A metric with no underlying evidence is excluded (never scored
+     as 0) and the index averages only over the metrics that have
+     data — coverage reports how many of the 5 were available.
+  ═══════════════════════════════════════════════════════════ */
+  const KPI_INDEX_TARGETS = {
+    active_clients_per_coach: { label: "Active Clients / Coach", min: 12, max: 15 },
+    conversion_rate: { label: "Coach Conversion Rate", target: 0.45 },
+    equifits_per_month: { label: "Equifits / Coach / Month", target: 12 },
+    cpt_per_week: { label: "CPTs / Coach / Week", target: 3 },
+    sessions_per_month: { label: "Sessions / Coach / Month", target: 90 },
+  };
+  function scoreKpiIndexMetric(key, value) {
+    if (value === null || value === undefined) return null;
+    const cfg = KPI_INDEX_TARGETS[key];
+    if (cfg.min !== undefined) {
+      if (value >= cfg.min && value <= cfg.max) return 100;
+      if (value < cfg.min) return Math.max(0, Math.round((value / cfg.min) * 100));
+      return 100; // above the target range still reads as fully met, not penalized
+    }
+    return Math.max(0, Math.min(100, Math.round((value / cfg.target) * 100)));
+  }
+  function kpiPerformanceIndex(coaches) {
+    const matched = coaches.filter(c => !!c.raw_performance);
+    const orgAgg = orgAggregateMetrics(matched);
+    const convAgg = avgCoachConversionRate(matched);
+    const activeAgg = avgActiveClientsPerCoach(matched);
+    const values = {
+      active_clients_per_coach: activeAgg.average,
+      conversion_rate: convAgg.average,
+      equifits_per_month: orgAgg.equifits_per_month,
+      cpt_per_week: orgAgg.cpt_per_week,
+      sessions_per_month: orgAgg.sessions_per_month,
+    };
+    const detail = {};
+    let sum = 0, count = 0;
+    Object.keys(KPI_INDEX_TARGETS).forEach((key) => {
+      const value = values[key];
+      const score = scoreKpiIndexMetric(key, value);
+      detail[key] = { label: KPI_INDEX_TARGETS[key].label, value, score, available: score !== null };
+      if (score !== null) { sum += score; count++; }
+    });
+    const totalMetrics = Object.keys(KPI_INDEX_TARGETS).length;
+    const index = count > 0 ? Math.round(sum / count) : null;
+    return {
+      index, coverage: count / totalMetrics,
+      coverageLabel: `${count} of ${totalMetrics} KPI inputs available`,
+      matchedCount: matched.length,
+      detail,
+    };
+  }
+
   window.CALC = {
     COMPETENCY_CONFIG, EVIDENCE_CONFIG, STATUS_BANDS, WEEKS_PER_MONTH, COVERAGE_THRESHOLD,
     statusBandFor, getCoach, pillarEvidence,
@@ -572,5 +749,8 @@
     clubRankings, performanceScoreDistribution,
     scoreCoach, scoreAggregateCompetencies,
     curriculumProgress, kpiPeriods, curriculumProgressSummary, orgConversionTrend,
+    avgCoachConversionRate, avgActiveClientsPerCoach, avgRecurringClientRate,
+    avgEqfsCompletedPerCoach, avgComppCompletedPerCoach, eqfsBookedSummary,
+    kpiPerformanceIndex, coachClubName,
   };
 })();

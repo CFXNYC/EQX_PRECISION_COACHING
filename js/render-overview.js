@@ -2,17 +2,23 @@
    PAGE — OVERVIEW
    ---------------------------------------------------------
    Concise, executive summary of the pilot: coach/data-coverage
-   counts, Three Ps score, a compact curriculum-progress roll-up,
-   the highest-value existing KPI evidence, and entry points into
-   each pillar page. Club Ranking, Score Distribution, and
-   org-wide Coaching Intelligence have been intentionally removed
-   from this tab (approved) — they were generic/duplicative and
-   didn't drive an action from this page.
+   counts, a KPI Performance Index (evidence-only) and Competency
+   Score shown as two clearly separated metrics, the Performance
+   KPI set, Three Ps competency scores, a compact curriculum-
+   progress roll-up, and entry points into each pillar page.
+
+   "Average X / Coach" cards are the arithmetic mean of each
+   eligible coach's own rate/value (see calculations.js's
+   "PER-COACH AVERAGE / RANKED KPI CARDS" section) — never a
+   total-over-total portfolio rollup where a per-coach average is
+   the meaningful management measure. Each is clickable and opens
+   a ranking modal built only from real per-coach evidence.
 
    Market/Club filters narrow the pilot coach pool used for every
-   KPI row and the pillar-score hero. Market is sourced only from
-   club_map_data.json's `market` field (attached to D.clubs[i].market
-   in coach-performance-data.js via strict club_id matching) — never
+   card on this page, including the KPI Performance Index and every
+   modal's coach list. Market is sourced only from club_map_data.json's
+   `market` field (attached to D.clubs[i].market in
+   coach-performance-data.js via strict club_id matching) — never
    inferred or hardcoded.
 ═══════════════════════════════════════════════════════════ */
 
@@ -22,7 +28,6 @@
   const D = window.PRECISION_DATA;
   const C = window.CALC;
   const K = window.COMPONENTS;
-  const CH = window.CHARTS;
 
   const state = { market: "ALL", club: "ALL" };
 
@@ -52,6 +57,16 @@
       }
       return true;
     });
+  }
+
+  /* Selected-club (or market) context shown in every modal's subtitle. */
+  function filterContextLabel() {
+    if (state.club !== "ALL") {
+      const club = D.clubs.find(c => c.club_number === state.club);
+      return club ? club.club_name : state.club;
+    }
+    if (state.market !== "ALL") return `${state.market} market`;
+    return "All Pilot Clubs";
   }
 
   /* Pilot summary for the current Market/Club filter — pilot coach count,
@@ -85,52 +100,53 @@
     ];
   }
 
-  /* Highest-value existing KPI evidence only — conversion and active
-     clients are always shown (source always carries them); avg weekly
-     sessions and recurring rate only appear when the aggregate actually
-     has a value; week-over-week conversion change only appears when 2+
-     valid weekly periods exist across the pool (C.orgConversionTrend
-     returns [] otherwise — never a fabricated trend). */
-  function evidenceKpis(s) {
+  /* Performance KPI set — real per-coach averages only (see calculations.js
+     header for why these are means-of-rates, not totals-over-totals).
+     Average Weekly Sessions is the one exception, unchanged: a portfolio
+     rate (total sessions / total active weeks), same as before. */
+  function performanceKpis(s) {
+    const convAgg = C.avgCoachConversionRate(s.pool);
+    const activeAgg = C.avgActiveClientsPerCoach(s.pool);
+    const recurAgg = C.avgRecurringClientRate(s.pool);
     const cards = [
-      { label: "Conversion Rate", value: pct1(s.orgAgg.conversion_rate), sub: "Evidence — Performance pillar", iconName: "zap" },
-      { label: "Active Clients", value: s.orgAgg.active_clients, sub: `Across ${s.withKpiEvidence.length} coaches with KPI evidence`, iconName: "users" },
+      {
+        label: "Average Coach Conversion Rate",
+        value: convAgg.average !== null ? pct1(convAgg.average) : "Data pending",
+        sub: `Average across ${convAgg.eligibleCount} of ${convAgg.matchedCount} coaches with conversion opportunities`,
+        iconName: "zap",
+        onClick: "PAGE_OVERVIEW.openConversionModal()",
+      },
+      {
+        label: "Average Active Clients / Coach",
+        value: activeAgg.average !== null ? num1(activeAgg.average) : "Data pending",
+        sub: `${activeAgg.total} total active clients across ${activeAgg.matchedCount} coaches`,
+        iconName: "users",
+        onClick: "PAGE_OVERVIEW.openActiveClientsModal()",
+      },
     ];
     if (s.orgAgg.avg_weekly_sessions !== null && s.orgAgg.avg_weekly_sessions !== undefined) {
       cards.push({ label: "Avg Weekly Sessions", value: num1(s.orgAgg.avg_weekly_sessions), sub: "Per active week", iconName: "calendar" });
     }
-    if (s.orgAgg.recurring_rate !== null && s.orgAgg.recurring_rate !== undefined) {
-      cards.push({ label: "Recurring Clients", value: pct1(s.orgAgg.recurring_rate), sub: "Recurring / Active Clients", iconName: "repeat" });
-    }
-    const periods = C.orgConversionTrend(s.pool);
-    if (periods.length >= 2) {
-      const last = periods[periods.length - 1], prev = periods[periods.length - 2];
-      const change = Math.round((last.conv_pct - prev.conv_pct) * 10) / 10;
-      const sign = change > 0 ? "+" : "";
-      cards.push({ label: "Conversion — Week over Week", value: `${sign}${change} pts`, sub: `${prev.periodLabel} → ${last.periodLabel}`, iconName: "trend" });
-    }
+    cards.push({
+      label: "Average Recurring Client Rate",
+      value: recurAgg.average !== null ? pct1(recurAgg.average) : "Data pending",
+      sub: `Average across ${recurAgg.eligibleCount} of ${recurAgg.matchedCount} coaches with active clients`,
+      iconName: "repeat",
+      onClick: "PAGE_OVERVIEW.openRecurringModal()",
+    });
     return cards;
   }
 
-  function overallScoreHero(s) {
-    const meets = s.scoredAgg.score_coverage.meets_threshold;
-    const scoreText = meets ? String(s.scoredAgg.overall_score) : "—";
-    const sub = meets
-      ? `${C.statusBandFor(s.scoredAgg.overall_score).label} · Performance 40% + Programming 30% + Professionalism 30%`
-      : `Data pending — ${s.scoredAgg.coverage_label}`;
+  /* Overall Performance Score — two clearly separated metrics: the
+     KPI Performance Index (primary, evidence-only) and the Competency
+     Score (unchanged, still "Data pending" until ratings exist). Never
+     merged or substituted for one another. */
+  function overallScoreSection(s) {
+    const kpiIndex = C.kpiPerformanceIndex(s.pool);
     return `
-      <div class="card card-pad">
-        <div class="section-header">
-          <span class="label-sm">Overall Performance Score</span>
-          <span class="label-xs" style="text-transform:none;letter-spacing:0">${K.escapeHtml(s.scoredAgg.coverage_label)}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:20px">
-          ${CH.ring({ score: meets ? s.scoredAgg.overall_score : 0, size: 108, stroke: 8, color: meets ? undefined : "var(--light-gray)", numSize: 30, showLabel: meets })}
-          <div>
-            <div style="font-size:36px;font-weight:700;letter-spacing:-1px;color:var(--off-black)">${scoreText}</div>
-            <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:4px">${K.escapeHtml(sub)}</div>
-          </div>
-        </div>
+      <div class="grid-2">
+        ${K.kpiIndexCard(kpiIndex)}
+        ${K.competencyScoreCard(s.scoredAgg)}
       </div>`;
   }
 
@@ -152,7 +168,12 @@
       </div>
 
       <div class="section-block">
-        ${overallScoreHero(s)}
+        ${overallScoreSection(s)}
+      </div>
+
+      <div class="section-block">
+        <div class="section-header"><span class="label-sm">Performance</span></div>
+        <div class="kpi-grid">${performanceKpis(s).map(K.kpiCard).join("")}</div>
       </div>
 
       <div class="section-block">
@@ -165,14 +186,65 @@
       </div>
 
       <div class="section-block">
-        <div class="section-header"><span class="label-sm">Evidence</span><span class="label-xs">Not scored — supporting evidence only</span></div>
-        <div class="kpi-grid">${evidenceKpis(s).map(K.kpiCard).join("")}</div>
-      </div>
-
-      <div class="section-block">
         <div class="section-header"><span class="label-sm">Precision Coaching Program</span></div>
         ${pillarEntryHtml(s)}
       </div>`;
+  }
+
+  /* ── Ranking modals ──────────────────────────────────────────── */
+  function openConversionModal() {
+    const agg = C.avgCoachConversionRate(filteredCoaches());
+    K.openRankingModal({
+      title: "Average Coach Conversion Rate",
+      subtitle: filterContextLabel(),
+      averageLabel: "Portfolio Average",
+      averageValueText: agg.average !== null ? pct1(agg.average) : "Data pending",
+      columns: [
+        { key: "display_name", label: "Coach" },
+        { key: "club_name", label: "Club" },
+        { key: "conversion_rate", label: "Conversion Rate", format: pct1 },
+        { key: "conversion_eqfs", label: "Conversion Equifits" },
+        { key: "ftbs_generated", label: "FTBs Generated" },
+      ],
+      rows: agg.rows,
+      emptyMessage: "No coaches with a conversion opportunity in the current filter.",
+    });
+  }
+
+  function openActiveClientsModal() {
+    const agg = C.avgActiveClientsPerCoach(filteredCoaches());
+    K.openRankingModal({
+      title: "Average Active Clients / Coach",
+      subtitle: filterContextLabel(),
+      averageLabel: "Portfolio Average",
+      averageValueText: agg.average !== null ? `${num1(agg.average)} clients` : "Data pending",
+      columns: [
+        { key: "display_name", label: "Coach" },
+        { key: "club_name", label: "Club" },
+        { key: "active_clients", label: "Active Clients" },
+      ],
+      rows: agg.rows,
+      emptyMessage: "No coaches with KPI evidence in the current filter.",
+    });
+  }
+
+  function openRecurringModal() {
+    const agg = C.avgRecurringClientRate(filteredCoaches());
+    K.openRankingModal({
+      title: "Average Recurring Client Rate",
+      subtitle: filterContextLabel(),
+      averageLabel: "Portfolio Average",
+      averageValueText: agg.average !== null ? pct1(agg.average) : "Data pending",
+      columns: [
+        { key: "display_name", label: "Coach" },
+        { key: "club_name", label: "Club" },
+        { key: "recurring_clients", label: "Recurring Clients" },
+        { key: "active_clients", label: "Active Clients" },
+        { key: "recurring_rate", label: "Recurring Rate", format: pct1 },
+      ],
+      rows: agg.rows,
+      emptyMessage: "No coaches with active clients in the current filter.",
+    });
   }
 
   function onMarketChange(v) { state.market = v; state.club = "ALL"; renderFilters(); renderBody(); }
@@ -194,7 +266,7 @@
       <div class="wrap">
         <div class="page-head">
           <div class="page-title">Precision Coaching Overview</div>
-          <div class="page-sub">Where the pilot stands today: coach coverage, three-pillar scores, curriculum progress, and results.</div>
+          <div class="page-sub">Where the pilot stands today: coach coverage, KPI and competency scores, curriculum progress, and results.</div>
         </div>
         <div class="section-block" id="overview-filters"></div>
         <div id="overview-body"></div>
@@ -203,5 +275,8 @@
     renderBody();
   }
 
-  window.PAGE_OVERVIEW = { render, onMarketChange, onClubChange };
+  window.PAGE_OVERVIEW = {
+    render, onMarketChange, onClubChange,
+    openConversionModal, openActiveClientsModal, openRecurringModal,
+  };
 })();

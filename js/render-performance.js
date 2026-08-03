@@ -2,13 +2,14 @@
    PAGE — PERFORMANCE
    ---------------------------------------------------------
    Weeks 5–8 of the Precision Coaching curriculum. Competency
-   scope: Engaging, Closing, Reframing only. Club Lead Totals sit
-   high on this page, immediately below the summary/filters,
-   clearly labeled club-level only — never attributed to an
-   individual coach (binding rule, see lead_tracker_summary.json
-   in calculations.js's EVIDENCE_CONFIG header). Diagnosis is
-   evidence-gated (RECS.diagnoseCoach) — never rendered without
-   supporting evidence.
+   scope: Engaging, Closing, Reframing only. Curriculum Progress
+   sits at the top of the page, immediately below the filters,
+   followed directly by Club Lead Totals (club-level only — never
+   attributed to an individual coach), then Performance evidence
+   as portfolio averages (see calculations.js's "PER-COACH AVERAGE
+   / RANKED KPI CARDS" section). Diagnosis is evidence-gated
+   (RECS.diagnoseCoach) — never rendered without supporting
+   evidence.
 
    CLUB PORTFOLIO DRILL-THROUGH — binding, ID-based end to end:
    the club filter here is driven by STATE.selectedClubId, always
@@ -39,6 +40,9 @@
     closing_opportunity: "Closing Opportunity",
   };
 
+  function pct1(v) { return v !== null && v !== undefined ? `${Math.round(v * 1000) / 10}%` : "—"; }
+  function num1(v) { return v !== null && v !== undefined ? Math.round(v * 10) / 10 : "—"; }
+
   if (window.STATE) {
     const initialClubId = window.STATE.getState().selectedClubId;
     if (initialClubId) state.clubFilter = String(initialClubId);
@@ -60,38 +64,52 @@
     return `All Coaches — ${club ? club.club_name : state.clubFilter}`;
   }
 
-  function coachOptionsHtml() {
-    return `<option value="ALL">${K.escapeHtml(aggregateLabel())}</option>${K.groupedCoachOptionsHtml(poolForClubFilter())}`;
+  function filterContextLabel() {
+    if (state.clubFilter === "ALL") return "All Pilot Clubs";
+    const club = D.clubs.find(c => c.club_number === state.clubFilter);
+    return club ? club.club_name : state.clubFilter;
   }
 
-  function pseudoCoachFromAgg(orgAgg) {
-    return {
-      calculated_metrics: {
-        active_clients: orgAgg.coach_count ? orgAgg.active_clients / orgAgg.coach_count : null,
-        conversion_rate: orgAgg.conversion_rate,
-        comppt_completed: orgAgg.comppt_completed,
-      },
-    };
+  function coachOptionsHtml() {
+    return `<option value="ALL">${K.escapeHtml(aggregateLabel())}</option>${K.groupedCoachOptionsHtml(poolForClubFilter())}`;
   }
 
   function currentScoreData() {
     if (state.coachId === "ALL") {
       const pool = poolForClubFilter();
       const scoreable = C.scoreableCoaches().filter(c => pool.indexOf(c) !== -1);
-      const matched = C.matchedCoaches().filter(c => pool.indexOf(c) !== -1);
       const avgCompetencies = C.orgAggregateCompetencies(scoreable);
       const scored = C.scoreAggregateCompetencies(avgCompetencies);
-      const orgAgg = C.orgAggregateMetrics(matched);
-      return { label: aggregateLabel(), isAggregate: true, orgAgg, coach: null, pool, ...scored };
+      return { label: aggregateLabel(), isAggregate: true, coach: null, pool, ...scored };
     }
     const coach = C.getCoach(state.coachId);
     if (!coach) return null;
     return {
-      label: coach.display_name, isAggregate: false, coach,
+      label: coach.display_name, isAggregate: false, coach, pool: poolForClubFilter(),
       performance_score: coach.performance_score, programming_score: coach.programming_score, professionalism_score: coach.professionalism_score,
       overall_score: coach.overall_score, score_coverage: coach.score_coverage, score_detail: coach.score_detail,
       coverage_label: coach.coverage_label, pillar_coverage_labels: coach.pillar_coverage_labels,
     };
+  }
+
+  function renderCurriculum() {
+    const el = document.getElementById("performance-curriculum");
+    const data = currentScoreData();
+    const curriculumHtml = !data
+      ? K.dataPendingBlock("No coach selected.")
+      : (data.isAggregate
+        ? K.curriculumSummaryCompact(C.curriculumProgressSummary(data.pool))
+        : K.curriculumProgressCard(C.curriculumProgress(data.coach)));
+    el.innerHTML = `
+      <div class="grid-2">
+        <div>${curriculumHtml}</div>
+        <div class="card card-pad">
+          <div class="section-header"><span class="label-sm">Program Focus — Weeks 5–8</span></div>
+          <ul style="padding-left:16px;font-size:12px;color:var(--dark-gray);line-height:1.9">
+            ${PROGRAM_FOCUS.map(t => `<li>${K.escapeHtml(t)}</li>`).join("")}
+          </ul>
+        </div>
+      </div>`;
   }
 
   /* Club lead totals — club-level ONLY (binding rule). A single coach shows
@@ -123,6 +141,43 @@
       </div>`;
   }
 
+  /* Performance evidence — portfolio averages over the current
+     club-filtered pool of matched coaches (see Overview for the same
+     pattern). Ranking modals always reflect the same pool. */
+  function renderEvidence(pool) {
+    const convAgg = C.avgCoachConversionRate(pool);
+    const activeAgg = C.avgActiveClientsPerCoach(pool);
+    const cpptAgg = C.avgComppCompletedPerCoach(pool);
+    const cards = [
+      {
+        label: "Average Active Clients / Coach",
+        value: activeAgg.average !== null ? num1(activeAgg.average) : "Data pending",
+        sub: `${activeAgg.total} total active clients across ${activeAgg.matchedCount} coaches`,
+        iconName: "users",
+        onClick: "PAGE_PERFORMANCE.openActiveClientsModal()",
+      },
+      {
+        label: "Average Coach Conversion Rate",
+        value: convAgg.average !== null ? pct1(convAgg.average) : "Data pending",
+        sub: `Average across ${convAgg.eligibleCount} of ${convAgg.matchedCount} coaches with conversion opportunities`,
+        iconName: "zap",
+        onClick: "PAGE_PERFORMANCE.openConversionModal()",
+      },
+      {
+        label: "Average CPTs Completed / Coach",
+        value: cpptAgg.average !== null ? num1(cpptAgg.average) : "Data pending",
+        sub: `Cumulative to date across ${cpptAgg.matchedCount} coaches`,
+        iconName: "flag",
+        onClick: "PAGE_PERFORMANCE.openCpptModal()",
+      },
+    ];
+    return `
+      <div class="section-block">
+        <div class="section-header"><span class="label-sm">Performance Evidence</span><span class="label-xs">Not scored — supporting evidence only</span></div>
+        <div class="kpi-grid">${cards.map(K.kpiCard).join("")}</div>
+      </div>`;
+  }
+
   function renderDiagnosis() {
     const el = document.getElementById("performance-diagnosis");
     if (state.coachId === "ALL") {
@@ -146,16 +201,13 @@
   function renderBody() {
     const data = currentScoreData();
     const el = document.getElementById("performance-score-body");
-    if (!data) { el.innerHTML = K.dataPendingBlock("No coach selected."); renderLeadTotals(); renderDiagnosis(); return; }
+    if (!data) { el.innerHTML = K.dataPendingBlock("No coach selected."); renderDiagnosis(); return; }
 
     const meets = data.score_coverage.meets_threshold;
     const overallText = meets ? String(data.overall_score) : "—";
     const overallSub = meets ? C.statusBandFor(data.overall_score).label : `Data pending — ${data.coverage_label}`;
     const detail = data.score_detail || {};
     const labels = data.pillar_coverage_labels || {};
-
-    const evidenceCoach = data.isAggregate ? pseudoCoachFromAgg(data.orgAgg) : data.coach;
-    const performanceEvidence = C.pillarEvidence(evidenceCoach, "performance");
 
     const periods = data.isAggregate ? C.orgConversionTrend(data.pool) : C.kpiPeriods(data.coach);
     let trendHtml = "";
@@ -170,11 +222,9 @@
         </div>`;
     }
 
-    const curriculumHtml = data.isAggregate
-      ? K.curriculumSummaryCompact(C.curriculumProgressSummary(data.pool))
-      : K.curriculumProgressCard(C.curriculumProgress(data.coach));
-
     el.innerHTML = `
+      ${renderEvidence(data.pool)}
+
       <div class="card card-pad" style="margin-bottom:16px">
         <div class="section-header">
           <span class="label-sm">Overall Score — ${K.escapeHtml(data.label)}</span>
@@ -189,22 +239,7 @@
       <div class="section-block">
         ${K.competencyCategoryDetail("Performance · 40%", data.performance_score, labels.performance, detail.performance)}
       </div>
-
-      <div class="section-block">
-        <div class="section-header"><span class="label-sm">Performance Evidence</span><span class="label-xs">Not scored — supporting evidence only</span></div>
-        ${K.evidenceRow(performanceEvidence)}
-      </div>
-      ${trendHtml}
-
-      <div class="section-block grid-2">
-        <div>${curriculumHtml}</div>
-        <div class="card card-pad">
-          <div class="section-header"><span class="label-sm">Program Focus — Weeks 5–8</span></div>
-          <ul style="padding-left:16px;font-size:12px;color:var(--dark-gray);line-height:1.9">
-            ${PROGRAM_FOCUS.map(t => `<li>${K.escapeHtml(t)}</li>`).join("")}
-          </ul>
-        </div>
-      </div>`;
+      ${trendHtml}`;
 
     renderDiagnosis();
 
@@ -214,7 +249,61 @@
     }
   }
 
-  function onCoachChange(val) { state.coachId = val; renderBody(); renderLeadTotals(); }
+  /* ── Ranking modals ──────────────────────────────────────────── */
+  function openConversionModal() {
+    const agg = C.avgCoachConversionRate(poolForClubFilter());
+    K.openRankingModal({
+      title: "Average Coach Conversion Rate",
+      subtitle: filterContextLabel(),
+      averageLabel: "Portfolio Average",
+      averageValueText: agg.average !== null ? pct1(agg.average) : "Data pending",
+      columns: [
+        { key: "display_name", label: "Coach" },
+        { key: "club_name", label: "Club" },
+        { key: "conversion_rate", label: "Conversion Rate", format: pct1 },
+        { key: "conversion_eqfs", label: "Conversion Equifits" },
+        { key: "ftbs_generated", label: "FTBs Generated" },
+      ],
+      rows: agg.rows,
+      emptyMessage: "No coaches with a conversion opportunity in the current filter.",
+    });
+  }
+
+  function openActiveClientsModal() {
+    const agg = C.avgActiveClientsPerCoach(poolForClubFilter());
+    K.openRankingModal({
+      title: "Average Active Clients / Coach",
+      subtitle: filterContextLabel(),
+      averageLabel: "Portfolio Average",
+      averageValueText: agg.average !== null ? `${num1(agg.average)} clients` : "Data pending",
+      columns: [
+        { key: "display_name", label: "Coach" },
+        { key: "club_name", label: "Club" },
+        { key: "active_clients", label: "Active Clients" },
+      ],
+      rows: agg.rows,
+      emptyMessage: "No coaches with KPI evidence in the current filter.",
+    });
+  }
+
+  function openCpptModal() {
+    const agg = C.avgComppCompletedPerCoach(poolForClubFilter());
+    K.openRankingModal({
+      title: "Average CPTs Completed / Coach",
+      subtitle: filterContextLabel(),
+      averageLabel: "Portfolio Average",
+      averageValueText: agg.average !== null ? `${num1(agg.average)} CPTs` : "Data pending",
+      columns: [
+        { key: "display_name", label: "Coach" },
+        { key: "club_name", label: "Club" },
+        { key: "comppt_completed", label: "CPTs Completed" },
+      ],
+      rows: agg.rows,
+      emptyMessage: "No coaches with KPI evidence in the current filter.",
+    });
+  }
+
+  function onCoachChange(val) { state.coachId = val; renderCurriculum(); renderBody(); renderLeadTotals(); }
   function onClubFilterChange(val) { state.clubFilter = val; state.coachId = "ALL"; render(); }
 
   function render() {
@@ -238,6 +327,8 @@
           </div>
         </div>
 
+        <div class="section-block" id="performance-curriculum"></div>
+
         <div class="section-block" id="performance-lead-totals"></div>
 
         <div id="performance-score-body"></div>
@@ -249,9 +340,13 @@
           </div>
         </div>
       </div>`;
+    renderCurriculum();
     renderLeadTotals();
     renderBody();
   }
 
-  window.PAGE_PERFORMANCE = { render, onCoachChange, onClubFilterChange };
+  window.PAGE_PERFORMANCE = {
+    render, onCoachChange, onClubFilterChange,
+    openConversionModal, openActiveClientsModal, openCpptModal,
+  };
 })();

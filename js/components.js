@@ -88,10 +88,13 @@
     return `<span class="coverage-badge ${cls}">${pctText} data coverage</span>`;
   }
 
-  /* ── KPI card ────────────────────────────────────────────────── */
-  function kpiCard({ label, value, sub, iconName }) {
+  /* ── KPI card — optional onClick (a JS expression string, same
+     convention as every other onclick= in this codebase) makes the card
+     an accessible button that opens a ranking modal. ── */
+  function kpiCard({ label, value, sub, iconName, onClick }) {
+    const clickableAttrs = onClick ? ` onclick="${onClick}" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();(${onClick})}"` : "";
     return `
-      <div class="kpi-card card">
+      <div class="kpi-card card${onClick ? " kpi-card-clickable" : ""}"${clickableAttrs}>
         <div class="kpi-lbl label-xs">${escapeHtml(label)}</div>
         <div class="kpi-body">
           ${iconName ? `<div class="kpi-icon">${icon(iconName, 16)}</div>` : ""}
@@ -347,9 +350,125 @@
       </div>`;
   }
 
+  /* ═══════════════════════════════════════════════════════════
+     MODAL — accessible ranking popups (Overview/Professionalism/
+     Performance "Average X / Coach" cards). No static container
+     exists in index.html; the root is created lazily on first use
+     so this file is fully self-contained. Backdrop click, Escape,
+     and an explicit close button all close it; only one modal is
+     ever open at a time.
+  ═══════════════════════════════════════════════════════════ */
+  function ensureModalRoot() {
+    let root = document.getElementById("app-modal-root");
+    if (!root) {
+      root = document.createElement("div");
+      root.id = "app-modal-root";
+      document.body.appendChild(root);
+    }
+    return root;
+  }
+  function handleModalKeydown(e) { if (e.key === "Escape") closeModal(); }
+  function closeModal() {
+    const root = document.getElementById("app-modal-root");
+    if (root) root.innerHTML = "";
+    document.removeEventListener("keydown", handleModalKeydown);
+  }
+  function openModal({ title, subtitle, bodyHtml }) {
+    const root = ensureModalRoot();
+    root.innerHTML = `
+      <div class="modal-backdrop" onclick="COMPONENTS.closeModal()">
+        <div class="modal-card" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+          <div class="modal-head">
+            <div>
+              <div class="modal-title">${escapeHtml(title)}</div>
+              ${subtitle ? `<div class="modal-sub">${escapeHtml(subtitle)}</div>` : ""}
+            </div>
+            <button type="button" class="modal-close" onclick="COMPONENTS.closeModal()" aria-label="Close">&times;</button>
+          </div>
+          <div class="modal-body">${bodyHtml}</div>
+        </div>
+      </div>`;
+    document.addEventListener("keydown", handleModalKeydown);
+    const closeBtn = root.querySelector(".modal-close");
+    if (closeBtn) closeBtn.focus();
+  }
+
+  /* Ranking table — rows must already be sorted (descending) by the
+     caller; this only renders the 1-based rank column plus whatever
+     columns are supplied. `format` is optional per-column formatting. */
+  function rankingTableHtml({ columns, rows }) {
+    const headHtml = columns.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
+    const bodyHtml = rows.map((r, i) => `
+      <tr>
+        <td class="modal-rank-cell">${i + 1}</td>
+        ${columns.map(c => `<td>${c.format ? c.format(r[c.key], r) : escapeHtml(r[c.key] === null || r[c.key] === undefined ? "—" : String(r[c.key]))}</td>`).join("")}
+      </tr>`).join("");
+    return `<div class="modal-table-wrap"><table class="modal-table"><thead><tr><th></th>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
+  }
+
+  /* High-level ranking modal — pairs the portfolio-average banner with the
+     ranking table and opens it. Every "Average X / Coach" card in
+     Overview/Professionalism/Performance calls this with real rows only
+     — never a fabricated ranking. */
+  function openRankingModal({ title, subtitle, averageLabel, averageValueText, columns, rows, emptyMessage }) {
+    const avgHtml = averageValueText
+      ? `<div class="modal-average"><span class="label-xs">${escapeHtml(averageLabel || "Portfolio Average")}</span><span class="modal-average-val">${escapeHtml(averageValueText)}</span></div>`
+      : "";
+    const tableHtml = (rows && rows.length) ? rankingTableHtml({ columns, rows }) : dataPendingBlock(emptyMessage || "No eligible coaches for this view.");
+    openModal({ title, subtitle, bodyHtml: `${avgHtml}${tableHtml}` });
+  }
+
+  /* ── KPI Performance Index card (Overview, primary Overall Performance
+     Score) — entirely separate from the competency score below it. ── */
+  function kpiIndexCard(kpiIndex) {
+    const hasIndex = kpiIndex.index !== null && kpiIndex.index !== undefined;
+    const scoreText = hasIndex ? String(kpiIndex.index) : "—";
+    const band = hasIndex ? window.CALC.statusBandFor(kpiIndex.index) : null;
+    return `
+      <div class="card card-pad">
+        <div class="section-header">
+          <span class="label-sm">KPI Performance Index</span>
+          <span class="label-xs" style="text-transform:none;letter-spacing:0">${escapeHtml(kpiIndex.coverageLabel)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:20px">
+          ${window.CHARTS.ring({ score: hasIndex ? kpiIndex.index : 0, size: 84, stroke: 7, color: hasIndex ? undefined : "var(--light-gray)", numSize: 24, showLabel: hasIndex })}
+          <div>
+            <div style="font-size:30px;font-weight:700;letter-spacing:-1px;color:var(--off-black)">${scoreText}</div>
+            <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:4px">${hasIndex ? band.label : "Data pending"}</div>
+          </div>
+        </div>
+        <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:12px;color:var(--mid-gray)">Derived from available portfolio KPI evidence</div>
+      </div>`;
+  }
+
+  /* ── Competency Score card — kept fully separate from the KPI Index
+     above; never merged, never substituted, never shown as a fabricated
+     0 while ratings are pending. ── */
+  function competencyScoreCard(scoredAgg) {
+    const meets = scoredAgg.score_coverage.meets_threshold;
+    const scoreText = meets ? String(scoredAgg.overall_score) : "—";
+    const sub = meets ? window.CALC.statusBandFor(scoredAgg.overall_score).label : `Data pending — ${scoredAgg.coverage_label}`;
+    return `
+      <div class="card card-pad">
+        <div class="section-header">
+          <span class="label-sm">Competency Score</span>
+          <span class="label-xs" style="text-transform:none;letter-spacing:0">${escapeHtml(scoredAgg.coverage_label)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:20px">
+          ${window.CHARTS.ring({ score: meets ? scoredAgg.overall_score : 0, size: 84, stroke: 7, color: meets ? undefined : "var(--light-gray)", numSize: 24, showLabel: meets })}
+          <div>
+            <div style="font-size:30px;font-weight:700;letter-spacing:-1px;color:var(--off-black)">${scoreText}</div>
+            <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:4px">${escapeHtml(sub)}</div>
+          </div>
+        </div>
+        <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:12px;color:var(--mid-gray)">Performance 40% + Programming 30% + Professionalism 30%</div>
+      </div>`;
+  }
+
   window.COMPONENTS = {
     icon, escapeHtml, badgeForScore, mappingBadge, overallScoreDisplay, coverageBadge, dataPendingBlock,
     kpiCard, targetBar, competencyBar, competencyCategoryDetail, evidenceRow, curriculumProgressCard, leadTotalsCard,
-    clubFilterOptionsHtml, coachCard, groupedCoachOptionsHtml, pillarEntryCard, curriculumSummaryCompact, ICONS,
+    clubFilterOptionsHtml, coachCard, groupedCoachOptionsHtml, pillarEntryCard, curriculumSummaryCompact,
+    openModal, closeModal, openRankingModal, rankingTableHtml, kpiIndexCard, competencyScoreCard, ICONS,
   };
 })();

@@ -2,9 +2,11 @@
    PAGE — PROFESSIONALISM
    ---------------------------------------------------------
    Weeks 1–4 of the Precision Coaching curriculum. Competency
-   scope: Mindset, Elevator Pitch, Floor Presence only. Evidence
-   is limited to what the source data actually supports for this
-   pillar — Equifits Completed/Booked — never club lead totals
+   scope: Mindset, Elevator Pitch, Floor Presence only. Curriculum
+   Progress sits at the top of the page, immediately below the
+   filters. Evidence follows directly below curriculum and is
+   framed as portfolio averages (see calculations.js's "PER-COACH
+   AVERAGE / RANKED KPI CARDS" section) — never club lead totals
    (those live exclusively on Performance, club-level only).
 
    CLUB PORTFOLIO DRILL-THROUGH — binding, ID-based end to end:
@@ -25,6 +27,8 @@
   const state = { coachId: "ALL", clubFilter: "ALL" };
 
   const PROGRAM_FOCUS = ["Mindset and Emotional Intelligence", "Personal Branding and Communication", "Floor Presence and Member Experience", "Time, Calendar and Member Experience"];
+
+  function num1(v) { return v !== null && v !== undefined ? Math.round(v * 10) / 10 : "—"; }
 
   if (window.STATE) {
     const initialClubId = window.STATE.getState().selectedClubId;
@@ -47,32 +51,65 @@
     return `All Coaches — ${club ? club.club_name : state.clubFilter}`;
   }
 
-  function coachOptionsHtml() {
-    return `<option value="ALL">${K.escapeHtml(aggregateLabel())}</option>${K.groupedCoachOptionsHtml(poolForClubFilter())}`;
+  function filterContextLabel() {
+    if (state.clubFilter === "ALL") return "All Pilot Clubs";
+    const club = D.clubs.find(c => c.club_number === state.clubFilter);
+    return club ? club.club_name : state.clubFilter;
   }
 
-  function pseudoCoachFromAgg(orgAgg) {
-    return { calculated_metrics: { eqfs_completed: orgAgg.eqfs_completed, eqfs_scheduled: null } };
+  function coachOptionsHtml() {
+    return `<option value="ALL">${K.escapeHtml(aggregateLabel())}</option>${K.groupedCoachOptionsHtml(poolForClubFilter())}`;
   }
 
   function currentScoreData() {
     if (state.coachId === "ALL") {
       const pool = poolForClubFilter();
       const scoreable = C.scoreableCoaches().filter(c => pool.indexOf(c) !== -1);
-      const matched = C.matchedCoaches().filter(c => pool.indexOf(c) !== -1);
       const avgCompetencies = C.orgAggregateCompetencies(scoreable);
       const scored = C.scoreAggregateCompetencies(avgCompetencies);
-      const orgAgg = C.orgAggregateMetrics(matched);
-      return { label: aggregateLabel(), isAggregate: true, orgAgg, coach: null, pool, ...scored };
+      return { label: aggregateLabel(), isAggregate: true, coach: null, pool, ...scored };
     }
     const coach = C.getCoach(state.coachId);
     if (!coach) return null;
     return {
-      label: coach.display_name, isAggregate: false, coach,
+      label: coach.display_name, isAggregate: false, coach, pool: poolForClubFilter(),
       performance_score: coach.performance_score, programming_score: coach.programming_score, professionalism_score: coach.professionalism_score,
       overall_score: coach.overall_score, score_coverage: coach.score_coverage, score_detail: coach.score_detail,
       coverage_label: coach.coverage_label, pillar_coverage_labels: coach.pillar_coverage_labels,
     };
+  }
+
+  /* Professionalism evidence — portfolio averages over the current
+     club-filtered pool of matched coaches, not the selected individual
+     coach (a single coach isn't itself an "average"). Ranking modals
+     always reflect the same pool, so the selected-club filter recalculates
+     both the cards and their modal lists. */
+  function renderEvidence(pool) {
+    const eqfsAgg = C.avgEqfsCompletedPerCoach(pool);
+    const bookedAgg = C.eqfsBookedSummary(pool);
+    const cards = [
+      {
+        label: "Average Equifits Completed / Coach",
+        value: eqfsAgg.average !== null ? num1(eqfsAgg.average) : "Data pending",
+        sub: `Cumulative to date across ${eqfsAgg.matchedCount} coaches`,
+        iconName: "zap",
+        onClick: "PAGE_PROFESSIONALISM.openEqfsCompletedModal()",
+      },
+      bookedAgg.availableCount > 0
+        ? {
+            label: "Equifits Booked",
+            value: bookedAgg.total,
+            sub: `Cumulative to date across ${bookedAgg.availableCount} of ${bookedAgg.matchedCount} coaches`,
+            iconName: "calendar",
+            onClick: "PAGE_PROFESSIONALISM.openEqfsBookedModal()",
+          }
+        : { label: "Equifits Booked", value: "Data pending", sub: `No booked-Equifit values on record for ${filterContextLabel()}`, iconName: "calendar" },
+    ];
+    return `
+      <div class="section-block">
+        <div class="section-header"><span class="label-sm">Professionalism Evidence</span><span class="label-xs">Not scored — supporting evidence only</span></div>
+        <div class="kpi-grid">${cards.map(K.kpiCard).join("")}</div>
+      </div>`;
   }
 
   function renderBody() {
@@ -86,14 +123,23 @@
     const detail = data.score_detail || {};
     const labels = data.pillar_coverage_labels || {};
 
-    const evidenceCoach = data.isAggregate ? pseudoCoachFromAgg(data.orgAgg) : data.coach;
-    const professionalismEvidence = C.pillarEvidence(evidenceCoach, "professionalism");
-
     const curriculumHtml = data.isAggregate
       ? K.curriculumSummaryCompact(C.curriculumProgressSummary(data.pool))
       : K.curriculumProgressCard(C.curriculumProgress(data.coach));
 
     el.innerHTML = `
+      <div class="section-block grid-2">
+        <div>${curriculumHtml}</div>
+        <div class="card card-pad">
+          <div class="section-header"><span class="label-sm">Program Focus — Weeks 1–4</span></div>
+          <ul style="padding-left:16px;font-size:12px;color:var(--dark-gray);line-height:1.9">
+            ${PROGRAM_FOCUS.map(t => `<li>${K.escapeHtml(t)}</li>`).join("")}
+          </ul>
+        </div>
+      </div>
+
+      ${renderEvidence(data.pool)}
+
       <div class="card card-pad" style="margin-bottom:16px">
         <div class="section-header">
           <span class="label-sm">Overall Score — ${K.escapeHtml(data.label)}</span>
@@ -107,27 +153,48 @@
 
       <div class="section-block">
         ${K.competencyCategoryDetail("Professionalism · 30%", data.professionalism_score, labels.professionalism, detail.professionalism)}
-      </div>
-
-      <div class="section-block">
-        <div class="section-header"><span class="label-sm">Professionalism Evidence</span><span class="label-xs">Not scored — supporting evidence only</span></div>
-        ${K.evidenceRow(professionalismEvidence)}
-      </div>
-
-      <div class="section-block grid-2">
-        <div>${curriculumHtml}</div>
-        <div class="card card-pad">
-          <div class="section-header"><span class="label-sm">Program Focus — Weeks 1–4</span></div>
-          <ul style="padding-left:16px;font-size:12px;color:var(--dark-gray);line-height:1.9">
-            ${PROGRAM_FOCUS.map(t => `<li>${K.escapeHtml(t)}</li>`).join("")}
-          </ul>
-        </div>
       </div>`;
 
     const link = document.getElementById("professionalism-profile-link");
     if (link) {
       link.innerHTML = state.coachId === "ALL" ? "" : `<span class="view-link" onclick="App.showCoach('${state.coachId}')" style="cursor:pointer;color:var(--dark-gray);font-family:'DM Mono',monospace;font-size:11px">View full coach profile →</span>`;
     }
+  }
+
+  /* ── Ranking modals ──────────────────────────────────────────── */
+  function openEqfsCompletedModal() {
+    const agg = C.avgEqfsCompletedPerCoach(poolForClubFilter());
+    K.openRankingModal({
+      title: "Average Equifits Completed / Coach",
+      subtitle: filterContextLabel(),
+      averageLabel: "Portfolio Average",
+      averageValueText: agg.average !== null ? `${num1(agg.average)} Equifits` : "Data pending",
+      columns: [
+        { key: "display_name", label: "Coach" },
+        { key: "club_name", label: "Club" },
+        { key: "eqfs_completed", label: "Equifits Completed" },
+      ],
+      rows: agg.rows,
+      emptyMessage: "No coaches with KPI evidence in the current filter.",
+    });
+  }
+
+  function openEqfsBookedModal() {
+    const agg = C.eqfsBookedSummary(poolForClubFilter());
+    K.openRankingModal({
+      title: "Equifits Booked",
+      subtitle: filterContextLabel(),
+      averageLabel: "Portfolio Total",
+      averageValueText: agg.availableCount > 0 ? `${agg.total} booked` : "Data pending",
+      columns: [
+        { key: "display_name", label: "Coach" },
+        { key: "club_name", label: "Club" },
+        { key: "eqfs_scheduled", label: "Equifits Booked" },
+        { key: "eqfs_completed", label: "Equifits Completed" },
+      ],
+      rows: agg.rows,
+      emptyMessage: "No booked-Equifit values on record for the current filter.",
+    });
   }
 
   function onCoachChange(val) { state.coachId = val; renderBody(); }
@@ -159,5 +226,8 @@
     renderBody();
   }
 
-  window.PAGE_PROFESSIONALISM = { render, onCoachChange, onClubFilterChange };
+  window.PAGE_PROFESSIONALISM = {
+    render, onCoachChange, onClubFilterChange,
+    openEqfsCompletedModal, openEqfsBookedModal,
+  };
 })();
