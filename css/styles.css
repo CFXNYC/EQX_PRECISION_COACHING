@@ -590,6 +590,66 @@ svg { display: block; }
 .pillar-entry-cta { font-size: 11px; font-weight: 600; color: var(--dark-gray); margin-top: 12px; font-family: 'DM Mono', monospace; }
 
 /* ═══════════════════════════════════════════════════════════
+   CLICKABLE KPI CARD (opens a ranking modal)
+═══════════════════════════════════════════════════════════ */
+.kpi-card-clickable { cursor: pointer; }
+.kpi-card-clickable:hover { box-shadow: var(--shadow-lg); border-color: var(--dark-gray); }
+.kpi-card-clickable:focus-visible { outline: 2px solid var(--off-black); outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL — ranking popups
+═══════════════════════════════════════════════════════════ */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.modal-card {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: 100%; max-width: 640px; max-height: calc(100vh - 48px);
+  display: flex; flex-direction: column;
+}
+.modal-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 20px 22px 16px; border-bottom: var(--border);
+}
+.modal-title { font-size: 15px; font-weight: 700; color: var(--black); }
+.modal-sub { font-size: 11px; color: var(--dark-gray); margin-top: 3px; }
+.modal-close {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  font-size: 18px; line-height: 1; color: var(--dark-gray);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s;
+}
+.modal-close:hover { background: var(--near-white); }
+.modal-close:focus-visible { outline: 2px solid var(--off-black); outline-offset: 1px; }
+.modal-body { padding: 18px 22px 22px; overflow-y: auto; }
+.modal-average {
+  display: flex; align-items: baseline; justify-content: space-between;
+  background: var(--near-white); border: var(--border); border-radius: var(--radius-sm);
+  padding: 10px 14px; margin-bottom: 14px;
+}
+.modal-average-val { font-size: 15px; font-weight: 700; color: var(--off-black); font-family: 'DM Mono', monospace; }
+.modal-table-wrap { overflow-x: auto; }
+.modal-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.modal-table th {
+  text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--mid-gray); font-family: 'DM Mono', monospace; padding: 6px 10px; border-bottom: var(--border);
+  white-space: nowrap;
+}
+.modal-table td { padding: 8px 10px; border-bottom: 1px solid var(--near-white); color: var(--off-black); white-space: nowrap; }
+.modal-table tr:last-child td { border-bottom: none; }
+.modal-rank-cell { font-family: 'DM Mono', monospace; color: var(--mid-gray); font-size: 10px; width: 24px; }
+
+@media (max-width: 768px) {
+  .modal-card { max-width: 100%; }
+  .modal-head { padding: 16px 16px 12px; }
+  .modal-body { padding: 14px 16px 18px; }
+}
+
+/* ═══════════════════════════════════════════════════════════
    FILTER BAR (Coach directory — search + club + status + band)
 ═══════════════════════════════════════════════════════════ */
 .filter-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
