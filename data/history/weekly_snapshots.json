@@ -1,0 +1,1154 @@
+{
+  "schema_version": "1.1",
+  "description": "Every capture is preserved (never overwritten) so intraweek spikes are visible, not just Monday-to-Monday movement. Exactly one entry per week_of has is_benchmark=true \u2014 the first capture taken that week, meant to be the Monday data point per the team's benchmarking convention. Later captures in the same week are intraweek updates (is_benchmark=false) layered onto that baseline. Re-run with --force-benchmark to correct a wrong benchmark.",
+  "snapshots": [
+    {
+      "week_of": "2026-08-03",
+      "captured_at": "2026-08-04T04:47:51Z",
+      "is_benchmark": true,
+      "org": {
+        "pilot_coaches": 111,
+        "kpi": {
+          "avg_conversion_rate": 0.2224,
+          "avg_active_clients_per_coach": 8.1182,
+          "avg_weekly_sessions": 7.3013,
+          "avg_recurring_rate": 0.8732,
+          "matched_coaches": 110
+        },
+        "competency": {
+          "scored_coaches": 0,
+          "coverage_pct": 0.0,
+          "avg_overall_score": null,
+          "avg_performance_score": null,
+          "avg_professionalism_score": null,
+          "avg_programming_score": null
+        },
+        "curriculum": {
+          "enrolled": 120,
+          "completed": 0,
+          "on_time": 119,
+          "not_started": 1,
+          "avg_progress_pct": 7.6167
+        },
+        "leads": {
+          "total_leads": 16,
+          "fitness_specialist_leads": 11,
+          "special_event_leads": 5,
+          "clubs_reporting": 4
+        }
+      },
+      "coaches": [
+        {
+          "coach_id": "PC-001",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-002",
+          "conversion_rate": 0.266666666666666,
+          "active_clients": 14,
+          "avg_weekly_sessions": 9.0,
+          "recurring_rate": 0.928571428571428,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-003",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-004",
+          "conversion_rate": 0.226415094339622,
+          "active_clients": 7,
+          "avg_weekly_sessions": 6.3275,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 10,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-005",
+          "conversion_rate": 0.352941176470588,
+          "active_clients": 12,
+          "avg_weekly_sessions": 9.6071,
+          "recurring_rate": 0.916666666666666,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-006",
+          "conversion_rate": 0.19047619047619,
+          "active_clients": 5,
+          "avg_weekly_sessions": 1.5,
+          "recurring_rate": 0.8,
+          "overall_score": null,
+          "curriculum_progress": null,
+          "curriculum_status": null
+        },
+        {
+          "coach_id": "PC-007",
+          "conversion_rate": 0.333333333333333,
+          "active_clients": 7,
+          "avg_weekly_sessions": 6.2115,
+          "recurring_rate": 0.714285714285714,
+          "overall_score": null,
+          "curriculum_progress": 10,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-008",
+          "conversion_rate": 0.615384615384615,
+          "active_clients": 23,
+          "avg_weekly_sessions": 14.8472,
+          "recurring_rate": 0.869565217391304,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-009",
+          "conversion_rate": 0.32,
+          "active_clients": 15,
+          "avg_weekly_sessions": 23.1759,
+          "recurring_rate": 0.933333333333333,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-010",
+          "conversion_rate": 0.166666666666666,
+          "active_clients": 6,
+          "avg_weekly_sessions": 9.6521,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-011",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-012",
+          "conversion_rate": 0.348837209302325,
+          "active_clients": 18,
+          "avg_weekly_sessions": 10.2142,
+          "recurring_rate": 0.888888888888888,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-013",
+          "conversion_rate": 0.25531914893617,
+          "active_clients": 16,
+          "avg_weekly_sessions": 10.4629,
+          "recurring_rate": 0.8125,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-014",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 10,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-015",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-016",
+          "conversion_rate": 0.229508196721311,
+          "active_clients": 17,
+          "avg_weekly_sessions": 13.9196,
+          "recurring_rate": 0.705882352941176,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-017",
+          "conversion_rate": 0.363636363636363,
+          "active_clients": 8,
+          "avg_weekly_sessions": 14.4464,
+          "recurring_rate": 0.875,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-018",
+          "conversion_rate": 0.166666666666666,
+          "active_clients": 4,
+          "avg_weekly_sessions": 2.0,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 11,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-019",
+          "conversion_rate": 0.322033898305084,
+          "active_clients": 18,
+          "avg_weekly_sessions": 10.4659,
+          "recurring_rate": 0.888888888888888,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-020",
+          "conversion_rate": 0.157894736842105,
+          "active_clients": 10,
+          "avg_weekly_sessions": 8.8055,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 10,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-021",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 10,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-022",
+          "conversion_rate": 0.0689655172413793,
+          "active_clients": 9,
+          "avg_weekly_sessions": 10.9636,
+          "recurring_rate": 0.888888888888888,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-023",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 31,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-024",
+          "conversion_rate": 0.236363636363636,
+          "active_clients": 7,
+          "avg_weekly_sessions": 8.0,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-025",
+          "conversion_rate": 0.276595744680851,
+          "active_clients": 15,
+          "avg_weekly_sessions": 20.0294,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-026",
+          "conversion_rate": 0.147058823529411,
+          "active_clients": 6,
+          "avg_weekly_sessions": 5.1304,
+          "recurring_rate": 0.833333333333333,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-027",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-028",
+          "conversion_rate": 0.2,
+          "active_clients": 1,
+          "avg_weekly_sessions": 2.5,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-029",
+          "conversion_rate": 0.142857142857142,
+          "active_clients": 1,
+          "avg_weekly_sessions": 1.0,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-030",
+          "conversion_rate": 0.142857142857142,
+          "active_clients": 3,
+          "avg_weekly_sessions": 2.0,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-031",
+          "conversion_rate": 0.0833333333333333,
+          "active_clients": 1,
+          "avg_weekly_sessions": 1.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-032",
+          "conversion_rate": 0.3,
+          "active_clients": 4,
+          "avg_weekly_sessions": 9.28,
+          "recurring_rate": 0.5,
+          "overall_score": null,
+          "curriculum_progress": null,
+          "curriculum_status": null
+        },
+        {
+          "coach_id": "PC-033",
+          "conversion_rate": 0.288461538461538,
+          "active_clients": 14,
+          "avg_weekly_sessions": 7.75,
+          "recurring_rate": 0.928571428571428,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-034",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-035",
+          "conversion_rate": 0.166666666666666,
+          "active_clients": 1,
+          "avg_weekly_sessions": 1.0,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-036",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 11,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-037",
+          "conversion_rate": 0.0967741935483871,
+          "active_clients": 6,
+          "avg_weekly_sessions": 6.074,
+          "recurring_rate": 0.666666666666666,
+          "overall_score": null,
+          "curriculum_progress": null,
+          "curriculum_status": null
+        },
+        {
+          "coach_id": "PC-038",
+          "conversion_rate": 0.09375,
+          "active_clients": 9,
+          "avg_weekly_sessions": 4.95,
+          "recurring_rate": 0.888888888888888,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-039",
+          "conversion_rate": 0.0,
+          "active_clients": 1,
+          "avg_weekly_sessions": 1.0,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-040",
+          "conversion_rate": 0.292307692307692,
+          "active_clients": 25,
+          "avg_weekly_sessions": 18.5,
+          "recurring_rate": 0.92,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-041",
+          "conversion_rate": 0.193548387096774,
+          "active_clients": 11,
+          "avg_weekly_sessions": 13.3272,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-042",
+          "conversion_rate": 0.111111111111111,
+          "active_clients": 1,
+          "avg_weekly_sessions": 1.0,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 6,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-043",
+          "conversion_rate": 0.24,
+          "active_clients": 8,
+          "avg_weekly_sessions": 8.75,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-044",
+          "conversion_rate": 0.260273972602739,
+          "active_clients": 17,
+          "avg_weekly_sessions": 16.0535,
+          "recurring_rate": 0.764705882352941,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-045",
+          "conversion_rate": 0.304347826086956,
+          "active_clients": 18,
+          "avg_weekly_sessions": 18.6354,
+          "recurring_rate": 0.777777777777777,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-046",
+          "conversion_rate": 0.363636363636363,
+          "active_clients": 5,
+          "avg_weekly_sessions": 9.0,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-047",
+          "conversion_rate": 0.233333333333333,
+          "active_clients": 9,
+          "avg_weekly_sessions": 6.5357,
+          "recurring_rate": 0.888888888888888,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-048",
+          "conversion_rate": 0.392857142857142,
+          "active_clients": 14,
+          "avg_weekly_sessions": 11.4,
+          "recurring_rate": 0.928571428571428,
+          "overall_score": null,
+          "curriculum_progress": 9,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-049",
+          "conversion_rate": 0.384615384615384,
+          "active_clients": 10,
+          "avg_weekly_sessions": 6.8888,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-050",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-051",
+          "conversion_rate": 0.172413793103448,
+          "active_clients": 7,
+          "avg_weekly_sessions": 6.1111,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-052",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-053",
+          "conversion_rate": 0.310344827586206,
+          "active_clients": 10,
+          "avg_weekly_sessions": 14.4017,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 24,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-054",
+          "conversion_rate": 0.310344827586206,
+          "active_clients": 5,
+          "avg_weekly_sessions": 9.3518,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-055",
+          "conversion_rate": 0.309523809523809,
+          "active_clients": 7,
+          "avg_weekly_sessions": 4.6363,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-056",
+          "conversion_rate": 0.229007633587786,
+          "active_clients": 19,
+          "avg_weekly_sessions": 12.0357,
+          "recurring_rate": 0.947368421052631,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-057",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 21,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-058",
+          "conversion_rate": 0.348837209302325,
+          "active_clients": 15,
+          "avg_weekly_sessions": 10.62,
+          "recurring_rate": 0.866666666666666,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-059",
+          "conversion_rate": 0.333333333333333,
+          "active_clients": 15,
+          "avg_weekly_sessions": 7.241,
+          "recurring_rate": 0.8,
+          "overall_score": null,
+          "curriculum_progress": 16,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-060",
+          "conversion_rate": 0.270833333333333,
+          "active_clients": 18,
+          "avg_weekly_sessions": 10.0,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-061",
+          "conversion_rate": 0.454545454545454,
+          "active_clients": 21,
+          "avg_weekly_sessions": 18.6517,
+          "recurring_rate": 0.714285714285714,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-062",
+          "conversion_rate": 0.0769230769230769,
+          "active_clients": 1,
+          "avg_weekly_sessions": 2.3333,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-063",
+          "conversion_rate": null,
+          "active_clients": null,
+          "avg_weekly_sessions": null,
+          "recurring_rate": null,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-064",
+          "conversion_rate": 0.239130434782608,
+          "active_clients": 10,
+          "avg_weekly_sessions": 13.5625,
+          "recurring_rate": 0.9,
+          "overall_score": null,
+          "curriculum_progress": 10,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-065",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-066",
+          "conversion_rate": 0.184210526315789,
+          "active_clients": 0,
+          "avg_weekly_sessions": 11.6829,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-067",
+          "conversion_rate": 0.137931034482758,
+          "active_clients": 5,
+          "avg_weekly_sessions": 2.5,
+          "recurring_rate": 0.8,
+          "overall_score": null,
+          "curriculum_progress": 7,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-068",
+          "conversion_rate": 0.2,
+          "active_clients": 14,
+          "avg_weekly_sessions": 17.9732,
+          "recurring_rate": 0.928571428571428,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-069",
+          "conversion_rate": 0.266666666666666,
+          "active_clients": 16,
+          "avg_weekly_sessions": 17.0142,
+          "recurring_rate": 0.875,
+          "overall_score": null,
+          "curriculum_progress": 10,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-070",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": null,
+          "curriculum_status": null
+        },
+        {
+          "coach_id": "PC-071",
+          "conversion_rate": 0.392857142857142,
+          "active_clients": 18,
+          "avg_weekly_sessions": 12.7727,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-072",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-073",
+          "conversion_rate": 0.346938775510204,
+          "active_clients": 21,
+          "avg_weekly_sessions": 12.6818,
+          "recurring_rate": 0.952380952380952,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-074",
+          "conversion_rate": 0.2,
+          "active_clients": 4,
+          "avg_weekly_sessions": 1.5555,
+          "recurring_rate": 0.75,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-075",
+          "conversion_rate": 0.317073170731707,
+          "active_clients": 14,
+          "avg_weekly_sessions": 11.4285,
+          "recurring_rate": 0.928571428571428,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-076",
+          "conversion_rate": 0.21875,
+          "active_clients": 11,
+          "avg_weekly_sessions": 10.4193,
+          "recurring_rate": 0.727272727272727,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-077",
+          "conversion_rate": 0.0,
+          "active_clients": 1,
+          "avg_weekly_sessions": 2.0,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-078",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 21,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-079",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-080",
+          "conversion_rate": 0.333333333333333,
+          "active_clients": 9,
+          "avg_weekly_sessions": 8.4444,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-081",
+          "conversion_rate": 0.222222222222222,
+          "active_clients": 9,
+          "avg_weekly_sessions": 8.95,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 11,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-082",
+          "conversion_rate": 0.224489795918367,
+          "active_clients": 16,
+          "avg_weekly_sessions": 17.3392,
+          "recurring_rate": 0.875,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-083",
+          "conversion_rate": 0.222222222222222,
+          "active_clients": 1,
+          "avg_weekly_sessions": 1.0,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 11,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-084",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-085",
+          "conversion_rate": 0.291666666666666,
+          "active_clients": 19,
+          "avg_weekly_sessions": 14.8125,
+          "recurring_rate": 0.894736842105263,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-086",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-087",
+          "conversion_rate": 0.175438596491228,
+          "active_clients": 14,
+          "avg_weekly_sessions": 15.7272,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-088",
+          "conversion_rate": 0.317073170731707,
+          "active_clients": 18,
+          "avg_weekly_sessions": 17.2727,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-089",
+          "conversion_rate": 0.358490566037735,
+          "active_clients": 18,
+          "avg_weekly_sessions": 17.65,
+          "recurring_rate": 0.888888888888888,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-090",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": null,
+          "curriculum_status": null
+        },
+        {
+          "coach_id": "PC-091",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 16,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-092",
+          "conversion_rate": 0.129032258064516,
+          "active_clients": 10,
+          "avg_weekly_sessions": 9.4821,
+          "recurring_rate": 0.9,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-093",
+          "conversion_rate": 0.233333333333333,
+          "active_clients": 14,
+          "avg_weekly_sessions": 7.2884,
+          "recurring_rate": 0.571428571428571,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-094",
+          "conversion_rate": 0.448275862068965,
+          "active_clients": 19,
+          "avg_weekly_sessions": 15.3303,
+          "recurring_rate": 0.842105263157894,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-095",
+          "conversion_rate": 0.409090909090909,
+          "active_clients": 5,
+          "avg_weekly_sessions": 6.7264,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-096",
+          "conversion_rate": 0.301587301587301,
+          "active_clients": 12,
+          "avg_weekly_sessions": 11.7454,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-097",
+          "conversion_rate": 0.147540983606557,
+          "active_clients": 7,
+          "avg_weekly_sessions": 3.1621,
+          "recurring_rate": 0.857142857142857,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-098",
+          "conversion_rate": 0.3125,
+          "active_clients": 5,
+          "avg_weekly_sessions": 7.6607,
+          "recurring_rate": 0.6,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-099",
+          "conversion_rate": 0.166666666666666,
+          "active_clients": 7,
+          "avg_weekly_sessions": 7.6759,
+          "recurring_rate": 0.714285714285714,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-100",
+          "conversion_rate": 0.0,
+          "active_clients": 28,
+          "avg_weekly_sessions": 18.7053,
+          "recurring_rate": 0.642857142857142,
+          "overall_score": null,
+          "curriculum_progress": 10,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-101",
+          "conversion_rate": 0.346153846153846,
+          "active_clients": 13,
+          "avg_weekly_sessions": 9.25,
+          "recurring_rate": 0.923076923076923,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-102",
+          "conversion_rate": 0.346153846153846,
+          "active_clients": 13,
+          "avg_weekly_sessions": 11.4722,
+          "recurring_rate": 0.846153846153846,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-103",
+          "conversion_rate": 0.269230769230769,
+          "active_clients": 11,
+          "avg_weekly_sessions": 6.302,
+          "recurring_rate": 0.636363636363636,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-104",
+          "conversion_rate": 0.133333333333333,
+          "active_clients": 5,
+          "avg_weekly_sessions": 4.0625,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-105",
+          "conversion_rate": 0.153846153846153,
+          "active_clients": 11,
+          "avg_weekly_sessions": 14.3555,
+          "recurring_rate": 0.727272727272727,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-106",
+          "conversion_rate": 0.263157894736842,
+          "active_clients": 3,
+          "avg_weekly_sessions": 2.0,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 7,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-107",
+          "conversion_rate": 0.223880597014925,
+          "active_clients": 13,
+          "avg_weekly_sessions": 11.6063,
+          "recurring_rate": 0.923076923076923,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-108",
+          "conversion_rate": 0.0,
+          "active_clients": 5,
+          "avg_weekly_sessions": 2.75,
+          "recurring_rate": 1.0,
+          "overall_score": null,
+          "curriculum_progress": 13,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-109",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 2.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 5,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-110",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 11,
+          "curriculum_status": "On time"
+        },
+        {
+          "coach_id": "PC-111",
+          "conversion_rate": 0.0,
+          "active_clients": 0,
+          "avg_weekly_sessions": 0.0,
+          "recurring_rate": 0.0,
+          "overall_score": null,
+          "curriculum_progress": 15,
+          "curriculum_status": "On time"
+        }
+      ]
+    }
+  ]
+}
