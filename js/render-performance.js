@@ -237,9 +237,11 @@
       </div>
 
       <div class="section-block">
-        ${K.competencyCategoryDetail("Performance · 40%", data.performance_score, labels.performance, detail.performance)}
+        ${K.competencyCategoryDetail("Performance · 50%", data.performance_score, labels.performance, detail.performance)}
       </div>
-      ${trendHtml}`;
+      ${trendHtml}
+
+      ${!data.isAggregate ? `<div class="section-block">${K.selfAssessmentPillarCard("performance", data.coach.self_assessment)}</div>` : ""}`;
 
     renderDiagnosis();
 

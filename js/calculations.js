@@ -8,7 +8,7 @@
 
    COMPETENCY-BASED SCORING MODEL
    -------------------------------
-   overall_score = performance*0.40 + programming*0.30 + professionalism*0.30
+   overall_score = performance*0.50 + professionalism*0.30 + programming*0.20
 
    Every pillar score is computed ONLY from the 1-5 competency
    ratings in danny_competencies_3ps.json (coach.evidence_sources.
@@ -21,16 +21,17 @@
    and inventing one is explicitly disallowed.
 
    Pillar → competency → evidence mapping (binding, from the
-   Skills Matrix — not a mechanical rename of any prior model):
-     Performance     (40%) — Engaging, Closing, Reframing
+   Skills Matrix, weights per the master build plan §9 and the
+   coach_self_assessed_competency_scores.json scoring formula):
+     Performance     (50%) — Engaging, Closing, Reframing
                               evidence: Active Clients, Conversion, CPTs Completed
-     Programming     (30%) — Structure, Coaching, Recommendation
-                              evidence: SPU (no source field — always Data pending),
-                                        Program Repurchase Rate
      Professionalism (30%) — Mindset, Elevator Pitch, Floor Presence
                               evidence: Equifits Completed, Equifits Booked,
                                         Leads Generated (club-level only — see
                                         D.clubs[i].lead_totals, never per-coach)
+     Programming     (20%) — Structure, Coaching, Recommendation
+                              evidence: SPU (no source field — always Data pending),
+                                        Program Repurchase Rate
 
    COVERAGE
    --------
@@ -38,7 +39,7 @@
    Competencies within a pillar are equal-weighted (no documented
    basis for unequal sub-weights). A pillar with zero available
    competencies is excluded from the overall weighted sum, and the
-   remaining pillars reweight to preserve the 40:30:30 *relative*
+   remaining pillars reweight to preserve the 50:30:20 *relative*
    ratio — the same renormalization approach used throughout this
    file, applied to competency coverage instead of KPI coverage.
    overall_coverage is NOT renormalized — it is the true fraction
@@ -93,7 +94,7 @@
   ═══════════════════════════════════════════════════════════ */
   const COMPETENCY_CONFIG = {
     performance: {
-      weight: 0.40,
+      weight: 0.50,
       label: "Performance",
       competencies: {
         engaging:  { label: "Engaging",  sourceField: "PERFORMANCE | Engaging" },
@@ -102,7 +103,7 @@
       },
     },
     programming: {
-      weight: 0.30,
+      weight: 0.20,
       label: "Programming",
       competencies: {
         structure:      { label: "Structure",      sourceField: "PROGRAMMING | Structure" },

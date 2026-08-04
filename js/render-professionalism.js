@@ -153,7 +153,9 @@
 
       <div class="section-block">
         ${K.competencyCategoryDetail("Professionalism · 30%", data.professionalism_score, labels.professionalism, detail.professionalism)}
-      </div>`;
+      </div>
+
+      ${!data.isAggregate ? `<div class="section-block">${K.selfAssessmentPillarCard("professionalism", data.coach.self_assessment)}</div>` : ""}`;
 
     const link = document.getElementById("professionalism-profile-link");
     if (link) {

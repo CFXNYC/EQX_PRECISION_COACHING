@@ -1,33 +1,41 @@
 /* ═══════════════════════════════════════════════════════════
-   RECOMMENDATION ENGINE — KPI-based diagnosis
+   RECOMMENDATION ENGINE — evidence-based diagnosis
    ---------------------------------------------------------
-   Turns computed Three Ps scores + raw KPIs (from calculations.js)
-   into Wins / Opportunities / Recommended Next Steps. Every
-   statement here interpolates real, traced numbers — nothing is
-   hardcoded per-coach or per-club.
+   Turns computed Performance/Programming/Professionalism scores
+   (calculations.js) plus raw KPI evidence into Wins / Opportunities
+   / Recommended Next Steps. Every statement interpolates real,
+   traced numbers — nothing is hardcoded per-coach or per-club.
 
-   DIAGNOSIS THRESHOLDS
-   --------------------
-   "High" / "low" activity or score signals reuse the Three Ps
-   performance bands already defined in calculations.js (On Track
-   = 75+, Needs Support/Developing boundary = 60) — no new
-   thresholds invented here.
+   FIVE DIAGNOSIS RULES (binding — matches the approved diagnosis
+   table exactly, replacing the prior Production/Process/Persistence
+   rule set):
+     1. Low Performance (Closing/Reframing)      → conversion & value-communication gap
+     2. Low Professionalism / low Equifit activity → pipeline-generation gap
+     3. Low Programming (Structure/Recommendation) → program design & continuity gap
+     4. Strong conversion + low recurring rate     → follow-up / retention opportunity
+     5. High activity + low conversion             → closing opportunity
 
-   Recurring Rate and Repurchase Rate have no documented absolute
-   target (see calculations.js SCORING_CONFIG.unscored_metrics), so
-   "low" for those two is defined RELATIVE to the pilot-wide average
-   among scoreable coaches — a data-driven comparison, not an
-   invented absolute cutoff.
+   Each rule is gated by data availability: it never fires unless
+   its own cited evidence is present (a null score or null KPI
+   means the rule is simply omitted, not shown with a placeholder).
+   "Low" reuses the Building Momentum band boundary already defined
+   in calculations.js (< 70) — no new threshold invented here.
+
+   Recurring Rate and activity-volume baselines have no documented
+   absolute target, so "low"/"high" for those two are defined
+   RELATIVE to the pilot-wide average among coaches with KPI
+   evidence (matchedCoaches()) — a data-driven comparison, not an
+   invented absolute cutoff. This baseline set is intentionally the
+   KPI-evidence population, not the competency-scored population —
+   the two are independently nullable (see calculations.js header).
 ═══════════════════════════════════════════════════════════ */
 
 (function () {
   "use strict";
 
-  const D = window.PRECISION_DATA;
   const C = window.CALC;
 
-  const ON_TRACK_MIN = C.STATUS_BANDS.find(b => b.label === "On Track").min;       // 75
-  const NEEDS_SUPPORT_MAX = C.STATUS_BANDS.find(b => b.label === "Needs Support").max; // 59 (i.e. "low" = < 60)
+  const LOW_THRESHOLD = C.STATUS_BANDS.find(b => b.label === "Building Momentum").min; // 70 — "low" = < 70
 
   function pct(v) { return v === null || v === undefined ? "—" : `${Math.round(v * 1000) / 10}%`; }
   function num(v, decimals) {
@@ -37,118 +45,151 @@
   }
   function firstName(name) { return (name || "").replace(/\s*\*\*$/, "").split(" ")[0]; }
 
-  /* Pilot-wide average recurring rate among all scoreable coaches with the
-     metric available — the relative baseline used for "low recurring rate"
-     since no absolute target exists for this metric. */
+  /* Pilot-wide KPI-evidence baselines — the relative comparison point for
+     rules with no documented absolute target. Sourced from matchedCoaches()
+     (has raw_performance), independent of competency-score availability. */
   function orgRecurringBaseline() {
-    const agg = C.orgAggregateMetrics(C.scoreableCoaches());
-    return agg.recurring_rate;
+    return C.orgAggregateMetrics(C.matchedCoaches()).recurring_rate;
+  }
+  function orgActivityBaseline() {
+    const agg = C.orgAggregateMetrics(C.matchedCoaches());
+    return agg.coach_count ? agg.activity_volume / agg.coach_count : null;
   }
 
   /* ═══════════════════════════════════════════════════════════
      PER-COACH DIAGNOSIS RULES
   ═══════════════════════════════════════════════════════════ */
   function diagnoseCoach(coach) {
-    if (!coach.raw_performance || !coach.calculated_metrics) return [];
-    const cm = coach.calculated_metrics;
+    const cm = coach.calculated_metrics; // KPI evidence — independently nullable from competency scores
     const diagnoses = [];
     const recurringBaseline = orgRecurringBaseline();
+    const activityBaseline = orgActivityBaseline();
 
-    // Rule 1 — High activity (Process) + low conversion → Closing Issue
-    if (coach.process_score !== null && coach.process_score >= ON_TRACK_MIN &&
-        cm.conversion_rate !== null && cm.conversion_rate < 0.45) {
+    // Rule 1 — Low Performance (Closing/Reframing) → conversion & value-communication gap
+    if (coach.performance_score !== null && coach.performance_score < LOW_THRESHOLD &&
+        cm && cm.conversion_rate !== null) {
       diagnoses.push({
-        type: "closing_issue",
-        category: "opportunity",
-        statement: `Process score is ${num(coach.process_score, 0)} (high activity) while Conversion Rate is ${pct(cm.conversion_rate)}, below the 45% target — a closing issue.`,
-        skills: ["Objection handling", "Value communication"],
+        type: "conversion_value_gap",
+        statement: `Performance score is ${num(coach.performance_score, 0)} while Conversion Rate is ${pct(cm.conversion_rate)} — a conversion and value-communication gap.`,
+        skills: ["Needs analysis", "Value presentation", "Objection handling", "Closing"],
       });
     }
 
-    // Rule 2 — Low activity (Process) → Pipeline Issue
-    if (coach.process_score !== null && coach.process_score < NEEDS_SUPPORT_MAX + 1) {
+    // Rule 2 — Low Professionalism / low Equifit activity → pipeline-generation gap
+    if (coach.professionalism_score !== null && coach.professionalism_score < LOW_THRESHOLD &&
+        cm && cm.eqfs_completed !== null && cm.eqfs_completed !== undefined) {
       diagnoses.push({
-        type: "pipeline_issue",
-        category: "opportunity",
-        statement: `Process score is ${num(coach.process_score, 0)}, below the Developing threshold (60) — a pipeline issue driven by low Equifit/CPT activity relative to target.`,
-        skills: ["Lead generation", "Floor engagement"],
+        type: "pipeline_generation_gap",
+        statement: `Professionalism score is ${num(coach.professionalism_score, 0)} with ${num(cm.eqfs_completed, 0)} Equifits completed to date — a pipeline-generation gap.`,
+        skills: ["Floor engagement", "Lead generation", "Relationship management", "Visibility"],
       });
     }
 
-    // Rule 3 — High conversion + low retention → Follow-Up Issue
-    if (cm.conversion_rate !== null && cm.conversion_rate >= 0.45 &&
+    // Rule 3 — Low Programming (Structure/Recommendation) → program design & continuity gap
+    if (coach.programming_score !== null && coach.programming_score < LOW_THRESHOLD) {
+      diagnoses.push({
+        type: "program_design_gap",
+        statement: `Programming score is ${num(coach.programming_score, 0)} — a program design and continuity gap.`,
+        skills: ["Periodization", "Individualized programming", "Assessment use", "Program recommendation"],
+      });
+    }
+
+    // Rule 4 — Strong conversion + low recurring rate → follow-up / retention opportunity
+    if (cm && cm.conversion_rate !== null && cm.conversion_rate >= 0.45 &&
         cm.recurring_rate !== null && recurringBaseline !== null && cm.recurring_rate < recurringBaseline) {
       diagnoses.push({
-        type: "follow_up_issue",
-        category: "opportunity",
-        statement: `Conversion Rate is ${pct(cm.conversion_rate)} (at/above the 45% target) but Recurring Rate is ${pct(cm.recurring_rate)}, below the pilot average of ${pct(recurringBaseline)} — a follow-up issue.`,
-        skills: ["Relationship building", "Follow-up systems"],
+        type: "retention_opportunity",
+        statement: `Conversion Rate is ${pct(cm.conversion_rate)} (at/above 45%) but Recurring Rate is ${pct(cm.recurring_rate)}, below the pilot average of ${pct(recurringBaseline)} — a follow-up and retention opportunity.`,
+        skills: ["Relationship building", "Follow-up systems", "Accountability", "Progress tracking"],
       });
     }
 
-    // Rule 4 — Low recurring rate (standalone)
-    if (cm.recurring_rate !== null && recurringBaseline !== null && cm.recurring_rate < recurringBaseline) {
+    // Rule 5 — High activity + low conversion → closing opportunity
+    if (cm && cm.activity_volume !== null && cm.activity_volume !== undefined && activityBaseline !== null && cm.activity_volume >= activityBaseline &&
+        cm.conversion_rate !== null && cm.conversion_rate < 0.45) {
       diagnoses.push({
-        type: "low_recurring_rate",
-        category: "opportunity",
-        statement: `Recurring Rate is ${pct(cm.recurring_rate)}, below the pilot average of ${pct(recurringBaseline)}.`,
-        skills: ["Relationship building", "Recurring scheduling", "Follow-up systems"],
-      });
-    }
-
-    // Rule 5 — High Process + low Production → activity not translating to outcomes
-    if (coach.process_score !== null && coach.process_score >= ON_TRACK_MIN &&
-        coach.production_score !== null && coach.production_score < NEEDS_SUPPORT_MAX + 1) {
-      diagnoses.push({
-        type: "process_vs_production",
-        category: "interpretation",
-        statement: `Process score (${num(coach.process_score, 0)}) is strong while Production score (${num(coach.production_score, 0)}) lags — strong activity is not yet translating into outcomes.`,
-        skills: ["Conversion coaching", "Client acquisition"],
-      });
-    }
-
-    // Rule 6 — High Production + low Persistence → results not yet sustainable
-    if (coach.production_score !== null && coach.production_score >= ON_TRACK_MIN &&
-        coach.persistence_score !== null && coach.persistence_score < NEEDS_SUPPORT_MAX + 1) {
-      diagnoses.push({
-        type: "production_vs_persistence",
-        category: "interpretation",
-        statement: `Production score (${num(coach.production_score, 0)}) is strong while Persistence score (${num(coach.persistence_score, 0)}) lags — results are not yet sustainable.`,
-        skills: ["Session cadence", "Client scheduling consistency"],
+        type: "closing_opportunity",
+        statement: `Activity Volume is ${num(cm.activity_volume, 0)} (at/above the pilot average of ${num(activityBaseline, 0)}) while Conversion Rate is ${pct(cm.conversion_rate)} — a closing opportunity.`,
+        skills: ["Needs analysis", "Value communication", "Objection handling", "Closing"],
       });
     }
 
     return diagnoses;
   }
 
-  /* ── Metric-level strongest/weakest lookup (for wins/opportunities) ── */
-  function flattenMetricDetail(coach) {
+  /* ── SKILLS_MATRIX mapping — competency → evidence KPI, development
+     focus, and recommended skills. Sourced directly from the SOURCE OF
+     TRUTH workbook's SKILLS_MATRIX tab (pillar, assessment_competency,
+     kpi, skill_category, specific_skills columns). Keys match
+     calculations.js's COMPETENCY_CONFIG competency keys exactly.
+
+     KNOWN GAP: `coaching` and `recommendation` (Programming pillar)
+     could not be confirmed against SKILLS_MATRIX rows 9+ — the source
+     workbook was unavailable when this was built. Left as `null` rather
+     than invented; primaryDevelopmentFocus() falls back to the
+     competency label alone when a mapping is missing. Fill in from
+     SKILLS_MATRIX rows for "Coaching" and "Recommendation" when
+     available. */
+  const SKILLS_MATRIX_CONFIG = {
+    engaging: { evidenceKpi: "CPTs Completed", developmentFocus: "Client Experience", recommendedSkills: ["Personalization", "communication", "motivation", "consistency in delivery"] },
+    closing: { evidenceKpi: "Conversion", developmentFocus: "Sales & Conversion", recommendedSkills: ["Needs analysis", "presenting value", "objection handling", "closing", "linking assessment to solution"] },
+    reframing: { evidenceKpi: "Conversion", developmentFocus: "Sales & Conversion", recommendedSkills: ["Needs analysis", "presenting value", "objection handling", "closing", "linking assessment to solution"] },
+    mindset: { evidenceKpi: "Equifits Booked", developmentFocus: "Relationship Management", recommendedSkills: ["Building relationships with MAs", "team collaboration", "referrals"] },
+    elevatorPitch: { evidenceKpi: "Leads Generated via Special Event, Fitness Specialist, PTM, MAs", developmentFocus: "Communication", recommendedSkills: ["Clear articulation of services", "confidence", "body language", "professionalism in client interactions"] },
+    floorPresence: { evidenceKpi: "Equifits Completed", developmentFocus: "Lead Generation", recommendedSkills: ["Networking", "recruiting leads", "floor engagement", "building visibility in club"] },
+    structure: { evidenceKpi: "SPU (Sessions Per Unit)", developmentFocus: "Program Compliance", recommendedSkills: ["Following program structure", "session execution consistency", "adherence to periodization", "tracking client progress"] },
+    coaching: null,
+    recommendation: null,
+  };
+
+  /* ── Competency-level strongest/weakest lookup (for wins/opportunities) ── */
+  const PILLAR_LABELS = { performance: "Performance", programming: "Programming", professionalism: "Professionalism" };
+  function flattenCompetencyDetail(coach) {
     if (!coach.score_detail) return [];
     const out = [];
-    ["production", "process", "persistence"].forEach((cat) => {
-      Object.entries(coach.score_detail[cat]).forEach(([key, m]) => {
-        if (m.available) out.push({ category: cat, key, ...m });
+    Object.keys(PILLAR_LABELS).forEach((pillar) => {
+      const detail = coach.score_detail[pillar];
+      if (!detail) return;
+      Object.entries(detail).forEach(([key, m]) => {
+        if (m.available) out.push({ pillar, pillarLabel: PILLAR_LABELS[pillar], key, label: m.label, normalized: m.normalized, raw: m.raw });
       });
     });
     return out;
   }
-  function strongestMetric(coach) {
-    const list = flattenMetricDetail(coach);
-    return list.length ? list.slice().sort((a, b) => b.score - a.score)[0] : null;
+  function strongestCompetency(coach) {
+    const list = flattenCompetencyDetail(coach);
+    return list.length ? list.slice().sort((a, b) => b.normalized - a.normalized)[0] : null;
   }
-  function weakestMetric(coach) {
-    const list = flattenMetricDetail(coach);
-    return list.length ? list.slice().sort((a, b) => a.score - b.score)[0] : null;
+  function weakestCompetency(coach) {
+    const list = flattenCompetencyDetail(coach);
+    return list.length ? list.slice().sort((a, b) => a.normalized - b.normalized)[0] : null;
   }
-  function formatMetricActual(m) {
-    if (m.unit === "%") return pct(m.actual);
-    if (m.unit) return `${num(m.actual, 1)}${m.unit}`;
-    return num(m.actual, 1);
-  }
-  function formatMetricTarget(m) {
-    if (m.target && typeof m.target === "object") return `${m.target.min}-${m.target.max}`;
-    if (m.unit === "%") return pct(m.target);
-    return `${m.target}${m.unit || ""}`;
+
+  /* Single ranked development focus per coach — the coach's weakest
+     rated competency, paired with its SKILLS_MATRIX evidence KPI and
+     recommended skills. Matches coach_competency_scores.json's schema
+     (primary_development_pillar / development_competency / evidence_kpi
+     / recommended_skills / next_coaching_action) so this activates
+     automatically once real competency ratings replace the currently
+     all-null danny_competencies_3ps.json — no wiring change needed. */
+  function primaryDevelopmentFocus(coachId) {
+    const coach = C.getCoach(coachId);
+    if (!coach) return null;
+    const weak = weakestCompetency(coach);
+    if (!weak) return null;
+    const mapping = SKILLS_MATRIX_CONFIG[weak.key];
+    const skills = mapping ? mapping.recommendedSkills : null;
+    return {
+      primary_development_pillar: weak.pillarLabel,
+      development_competency: weak.label,
+      competency_score: weak.normalized,
+      evidence_kpi: mapping ? mapping.evidenceKpi : null,
+      development_focus: mapping ? mapping.developmentFocus : null,
+      recommended_skills: skills,
+      next_coaching_action: skills
+        ? `Manager observation focus: ${skills.slice(0, 3).join(", ")}.`
+        : `Manager observation focus: ${weak.label} (${weak.pillarLabel}).`,
+    };
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -156,43 +197,35 @@
   ═══════════════════════════════════════════════════════════ */
   function coachIntelligence(coachId) {
     const coach = C.getCoach(coachId);
-    if (!coach || !coach.raw_performance || !coach.calculated_metrics) {
-      return { strengths: [], opportunities: [], nextSteps: [] };
-    }
+    if (!coach) return { strengths: [], opportunities: [], nextSteps: [] };
     const name = firstName(coach.display_name);
     const diagnoses = diagnoseCoach(coach);
-    const strong = strongestMetric(coach);
-    const weak = weakestMetric(coach);
+    const strong = strongestCompetency(coach);
+    const weak = weakestCompetency(coach);
+    const cm = coach.calculated_metrics;
+    const hasCompetencyRow = C.hasCompetencyScore(coach);
 
     const strengths = [];
-    if (strong && strong.score >= 100) {
-      strengths.push(`${strong.label} is ${name}'s strongest metric at ${formatMetricActual(strong)} — at or above the target of ${formatMetricTarget(strong)}.`);
-    } else if (strong) {
-      strengths.push(`${strong.label} is ${name}'s strongest metric at ${formatMetricActual(strong)} against a target of ${formatMetricTarget(strong)}.`);
+    if (strong) strengths.push(`${strong.label} (${strong.pillarLabel}) is ${name}'s strongest rated competency at ${num(strong.normalized, 0)}/100.`);
+    if (cm && cm.repurchase_rate !== null && cm.repurchase_rate >= 0.5) {
+      strengths.push(`Program Repurchase Rate is ${pct(cm.repurchase_rate)} — over half of first-time-booked clients repurchase.`);
     }
-    if (coach.calculated_metrics.repurchase_rate !== null && coach.calculated_metrics.repurchase_rate >= 0.5) {
-      strengths.push(`Repurchase Rate is ${pct(coach.calculated_metrics.repurchase_rate)} — over half of first-time-booked clients repurchase.`);
+    if (!strengths.length) {
+      strengths.push(hasCompetencyRow ? `No competency currently stands out as a strength.` : `Competency ratings are Data pending for ${name}.`);
     }
-    if (!strengths.length) strengths.push(`No metric currently exceeds its target — see Opportunities for the highest-leverage gap.`);
 
     const opportunities = [];
-    if (weak) {
-      opportunities.push(`${weak.label} is ${name}'s lowest-scoring metric at ${formatMetricActual(weak)} against a target of ${formatMetricTarget(weak)}.`);
-    }
-    diagnoses.filter(d => d.category === "opportunity").forEach(d => opportunities.push(d.statement));
-    diagnoses.filter(d => d.category === "interpretation").forEach(d => opportunities.push(d.statement));
-    if (!opportunities.length) opportunities.push(`No KPI gaps detected against current targets.`);
+    if (weak) opportunities.push(`${weak.label} (${weak.pillarLabel}) is ${name}'s lowest-rated competency at ${num(weak.normalized, 0)}/100.`);
+    diagnoses.forEach((d) => opportunities.push(d.statement));
+    if (!opportunities.length) opportunities.push(`No evidence-based opportunities detected against current data.`);
 
     const nextSteps = [];
-    diagnoses.forEach((d) => {
-      nextSteps.push(`Coach on ${d.skills.join(" and ").toLowerCase()} — ${d.statement}`);
-    });
-    if (!nextSteps.length && weak) {
-      nextSteps.push(`Focus the next coaching conversation on ${weak.label} — currently ${formatMetricActual(weak)} against a target of ${formatMetricTarget(weak)}.`);
+    diagnoses.forEach((d) => nextSteps.push(`Coach on ${d.skills.join(", ").toLowerCase()} — ${d.statement}`));
+    if (!nextSteps.length && weak) nextSteps.push(`Focus the next coaching conversation on ${weak.label} — currently rated ${num(weak.normalized, 0)}/100.`);
+    if (hasCompetencyRow && coach.score_coverage && !coach.score_coverage.meets_threshold) {
+      nextSteps.push(`Competency coverage is ${coach.coverage_label} — confirm ratings are being logged before acting on this score.`);
     }
-    if (!coach.score_coverage.meets_threshold) {
-      nextSteps.push(`Data coverage is ${pct(coach.score_coverage.overall_coverage)}, below the 60% reliability threshold — confirm activity is being logged before acting on this score.`);
-    }
+    if (!nextSteps.length) nextSteps.push(`Data pending — no competency ratings available yet for ${name}.`);
 
     return { strengths, opportunities, nextSteps };
   }
@@ -204,51 +237,38 @@
     const scoreable = C.scoreableCoaches();
     const scored = C.reliablyScored(scoreable);
     const orgAvg = C.orgAverageScores(scoreable);
-    const orgAgg = C.orgAggregateMetrics(scoreable);
     const rankings = C.clubRankings().filter(r => r.avg_score !== null);
     const topClub = rankings[0];
     const bottomClub = rankings[rankings.length - 1];
 
-    const diagCounts = { closing_issue: 0, pipeline_issue: 0, follow_up_issue: 0, low_recurring_rate: 0, process_vs_production: 0, production_vs_persistence: 0 };
+    const diagCounts = { conversion_value_gap: 0, pipeline_generation_gap: 0, program_design_gap: 0, retention_opportunity: 0, closing_opportunity: 0 };
     scored.forEach((c) => { diagnoseCoach(c).forEach((d) => { diagCounts[d.type] = (diagCounts[d.type] || 0) + 1; }); });
 
-    const avgActiveClients = orgAgg.coach_count ? orgAgg.active_clients / orgAgg.coach_count : null;
-    const orgMetrics = [
-      { key: "active_clients", label: "Active Clients", actual: avgActiveClients, target: 12, targetLabel: "12-15", unit: "" },
-      { key: "conversion_rate", label: "Conversion Rate", actual: orgAgg.conversion_rate, target: 0.45, targetLabel: "45%", unit: "%" },
-      { key: "equifits_per_month", label: "Equifits / Month", actual: orgAgg.equifits_per_month, target: 12, targetLabel: "12/mo", unit: "/mo" },
-      { key: "cpt_per_week", label: "CPTs / Week", actual: orgAgg.cpt_per_week, target: 3, targetLabel: "3/wk", unit: "/wk" },
-      { key: "sessions_per_month", label: "Sessions / Month", actual: orgAgg.sessions_per_month, target: 90, targetLabel: "90/mo", unit: "/mo" },
-    ].filter(m => m.actual !== null && m.actual !== undefined)
-      .map(m => ({ ...m, attainment: m.actual / m.target }));
-    const strongestOrgMetric = orgMetrics.length ? orgMetrics.slice().sort((a, b) => b.attainment - a.attainment)[0] : null;
-    const weakestOrgMetric = orgMetrics.length ? orgMetrics.slice().sort((a, b) => a.attainment - b.attainment)[0] : null;
-    const fmtOrgActual = (m) => (m.unit === "%" ? pct(m.actual) : `${num(m.actual, 1)}${m.unit}`);
-
-    const onTrackCount = scored.filter(c => c.overall_score >= ON_TRACK_MIN).length;
+    const onTrackCount = scored.filter(c => c.overall_score >= LOW_THRESHOLD).length;
 
     const wins = [];
-    if (topClub) wins.push(`${topClub.club_name} leads all pilot clubs with an average Three Ps score of ${topClub.avg_score} across ${topClub.scored_coach_count} scored coaches.`);
-    if (strongestOrgMetric) wins.push(`${strongestOrgMetric.label} is the strongest metric pilot-wide at ${fmtOrgActual(strongestOrgMetric)} against a target of ${strongestOrgMetric.targetLabel}.`);
-    if (scored.length) wins.push(`${onTrackCount} of ${scored.length} scored coaches (${Math.round((onTrackCount / scored.length) * 100)}%) are On Track or Excelling on the Three Ps model.`);
-    if (orgAvg.overall_score !== null) wins.push(`The pilot's average Three Ps score is ${orgAvg.overall_score} across ${orgAvg.scored_count} reliably scored coaches.`);
+    if (topClub) wins.push(`${topClub.club_name} leads all pilot clubs with an average score of ${topClub.avg_score} across ${topClub.scored_coach_count} scored coaches.`);
+    if (scored.length) wins.push(`${onTrackCount} of ${scored.length} scored coaches (${Math.round((onTrackCount / scored.length) * 100)}%) are at Building Momentum or above.`);
+    if (orgAvg.overall_score !== null) wins.push(`The pilot's average score is ${orgAvg.overall_score} across ${orgAvg.scored_count} reliably scored coaches (${scoreable.length} of ${C.allApprovedCoaches().length} pilot coaches have at least one competency rating).`);
+    if (!wins.length) wins.push(`Competency ratings are Data pending pilot-wide — wins will populate once ratings are logged.`);
 
     const opportunities = [];
-    if (bottomClub) opportunities.push(`${bottomClub.club_name} trails the pilot at an average Three Ps score of ${bottomClub.avg_score}.`);
-    if (weakestOrgMetric) opportunities.push(`${weakestOrgMetric.label} is the softest metric pilot-wide at ${fmtOrgActual(weakestOrgMetric)} against a target of ${weakestOrgMetric.targetLabel}.`);
-    if (diagCounts.pipeline_issue) opportunities.push(`${diagCounts.pipeline_issue} of ${scored.length} scored coaches show a pipeline issue — activity well below target.`);
-    if (diagCounts.closing_issue) opportunities.push(`${diagCounts.closing_issue} of ${scored.length} scored coaches show a closing issue — high activity not converting.`);
-    if (!opportunities.length) opportunities.push(`No pilot-wide KPI gaps detected against current targets.`);
+    if (bottomClub) opportunities.push(`${bottomClub.club_name} trails the pilot at an average score of ${bottomClub.avg_score}.`);
+    if (diagCounts.pipeline_generation_gap) opportunities.push(`${diagCounts.pipeline_generation_gap} of ${scored.length} scored coaches show a pipeline-generation gap.`);
+    if (diagCounts.conversion_value_gap) opportunities.push(`${diagCounts.conversion_value_gap} of ${scored.length} scored coaches show a conversion and value-communication gap.`);
+    if (diagCounts.program_design_gap) opportunities.push(`${diagCounts.program_design_gap} of ${scored.length} scored coaches show a program design and continuity gap.`);
+    if (!opportunities.length) opportunities.push(`No pilot-wide evidence-based gaps detected against current data.`);
 
     const actions = [];
-    if (diagCounts.closing_issue) actions.push(`Run objection-handling and value-communication training for the ${diagCounts.closing_issue} coach${diagCounts.closing_issue === 1 ? "" : "es"} showing a closing issue.`);
-    if (diagCounts.pipeline_issue) actions.push(`Reinforce lead generation and floor engagement standards with the ${diagCounts.pipeline_issue} coach${diagCounts.pipeline_issue === 1 ? "" : "es"} showing a pipeline issue.`);
-    if (diagCounts.follow_up_issue || diagCounts.low_recurring_rate) actions.push(`Review follow-up and recurring-scheduling systems — ${diagCounts.low_recurring_rate} coach${diagCounts.low_recurring_rate === 1 ? "" : "es"} sit below the pilot's recurring-rate average.`);
+    if (diagCounts.conversion_value_gap) actions.push(`Run needs-analysis and closing training for the ${diagCounts.conversion_value_gap} coach${diagCounts.conversion_value_gap === 1 ? "" : "es"} showing a conversion gap.`);
+    if (diagCounts.pipeline_generation_gap) actions.push(`Reinforce floor engagement and lead-generation standards with the ${diagCounts.pipeline_generation_gap} coach${diagCounts.pipeline_generation_gap === 1 ? "" : "es"} showing a pipeline-generation gap.`);
+    if (diagCounts.program_design_gap) actions.push(`Review programming and periodization practices with the ${diagCounts.program_design_gap} coach${diagCounts.program_design_gap === 1 ? "" : "es"} showing a program design gap.`);
+    if (diagCounts.retention_opportunity) actions.push(`Review follow-up and retention systems with the ${diagCounts.retention_opportunity} coach${diagCounts.retention_opportunity === 1 ? "" : "es"} showing a retention opportunity.`);
     if (topClub && bottomClub && topClub.club_name !== bottomClub.club_name) actions.push(`Share ${topClub.club_name}'s coaching cadence as a model for ${bottomClub.club_name}.`);
-    if (!actions.length) actions.push(`Continue current coaching cadence — no urgent KPI gaps detected pilot-wide.`);
+    if (!actions.length) actions.push(`Continue current coaching cadence — no urgent evidence-based gaps detected pilot-wide.`);
 
     return { wins, opportunities, actions };
   }
 
-  window.RECS = { orgIntelligence, coachIntelligence, diagnoseCoach, strongestMetric, weakestMetric, formatMetricActual, formatMetricTarget };
+  window.RECS = { orgIntelligence, coachIntelligence, diagnoseCoach, strongestCompetency, weakestCompetency, primaryDevelopmentFocus };
 })();

@@ -80,6 +80,15 @@
     if (window.PRECISION_SCORES_READY && typeof window.PRECISION_SCORES_READY.then === "function") {
       await window.PRECISION_SCORES_READY;
     }
+    // Self-assessment data (js/self-assessment-data.js) loads independently
+    // of the scoring pipeline — wait for it too so first paint doesn't show
+    // a false "not yet submitted" state.
+    if (window.SELF_ASSESSMENT_READY && typeof window.SELF_ASSESSMENT_READY.then === "function") {
+      await window.SELF_ASSESSMENT_READY;
+    }
+    if (window.TREND_HISTORY_READY && typeof window.TREND_HISTORY_READY.then === "function") {
+      await window.TREND_HISTORY_READY;
+    }
     window.PAGE_OVERVIEW.render();
     window.PAGE_PROFESSIONALISM.render();
     window.PAGE_PERFORMANCE.render();

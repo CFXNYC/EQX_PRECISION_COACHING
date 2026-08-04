@@ -78,7 +78,13 @@
       }
       seriesSvg += `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
       s.values.forEach((v, i) => {
-        seriesSvg += `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="2.6" fill="${s.color}"/>`;
+        // pointRadii/pointColors (optional, parallel arrays) let a caller
+        // highlight specific points — e.g. a Monday benchmark vs an
+        // intraweek capture — without altering the default look for
+        // every other chart that doesn't pass them.
+        const r = (s.pointRadii && s.pointRadii[i] !== undefined) ? s.pointRadii[i] : 2.6;
+        const c = (s.pointColors && s.pointColors[i]) ? s.pointColors[i] : s.color;
+        seriesSvg += `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="${r}" fill="${c}"/>`;
       });
     });
 

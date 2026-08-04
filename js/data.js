@@ -72,9 +72,11 @@
      camera → popups. */
   const PIPELINE_SCRIPTS = [
     "js/coach-performance-data.js",
+    "js/self-assessment-data.js",
     "js/calculations.js",
     "js/recommendations.js",
     "js/charts.js",
+    "js/trend-history.js",
     "js/components.js",
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js",
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js",

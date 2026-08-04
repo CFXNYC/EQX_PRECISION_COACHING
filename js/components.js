@@ -208,6 +208,94 @@
       </div>`;
   }
 
+  /* ── Self-assessment card (Professionalism/Performance/Programming pages,
+     Coach profile) — informational only, NEVER folds into Overall Score
+     or any pillar score. Sourced from coach_self_assessed_competency_scores.json
+     (coach.self_assessment, attached by js/self-assessment-data.js), a
+     separate 37-item weekly curriculum self-reflection distinct from the
+     9-item observer-scored competency framework driving calculations.js.
+     Binding decision confirmed 2026-08-04: display only, never blended. ── */
+  function selfAssessmentPillarCard(pillarKey, selfAssessment) {
+    const pillarData = selfAssessment && selfAssessment.competencies ? selfAssessment.competencies[pillarKey] : null;
+    if (!selfAssessment || !pillarData) {
+      return `<div class="card card-pad"><div class="section-header"><span class="label-sm">Self-Assessment</span><span class="badge badge-foundation">Self-reported</span></div>${dataPendingBlock("This coach has not yet submitted a self-assessment.")}</div>`;
+    }
+    const items = (pillarData.items || []).map((it) => `
+      <div class="baseline-item">
+        <span class="baseline-lbl">Week ${it.week_number} — ${escapeHtml(it.focus_area || "")}: ${escapeHtml(it.question || "")}</span>
+        <span class="baseline-val">${escapeHtml(it.response || "—")}${it.rating !== null && it.rating !== undefined ? ` (${it.rating}/5)` : ""}</span>
+      </div>`).join("");
+    return `
+      <div class="card card-pad">
+        <div class="section-header">
+          <span class="label-sm">Self-Assessment</span>
+          <span class="badge badge-foundation">Self-reported — not part of Overall Score</span>
+        </div>
+        <div class="baseline-strip">
+          <div class="baseline-item"><span class="baseline-lbl">Self-Reported Score</span><span class="baseline-val">${pillarData.score}</span></div>
+          <div class="baseline-item"><span class="baseline-lbl">Average Rating</span><span class="baseline-val">${pillarData.average_rating} / 5</span></div>
+          <div class="baseline-item"><span class="baseline-lbl">Items Completed</span><span class="baseline-val">${pillarData.item_count} of ${pillarData.expected_item_count}</span></div>
+        </div>
+        <details style="margin-top:10px">
+          <summary class="label-xs" style="cursor:pointer;color:var(--mid-gray)">View item-level responses</summary>
+          <div class="baseline-strip" style="margin-top:8px">${items}</div>
+        </details>
+        <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:10px;color:var(--mid-gray)">Submitted ${escapeHtml(selfAssessment.assessment_date || "—")}</div>
+      </div>`;
+  }
+
+  /* ── Self-assessment summary card (Coach profile) — all three pillars
+     compactly, same informational-only framing. ── */
+  function selfAssessmentSummaryCard(selfAssessment) {
+    if (!selfAssessment || !selfAssessment.competencies) {
+      return `<div class="card card-pad"><div class="section-header"><span class="label-sm">Self-Assessment</span><span class="badge badge-foundation">Self-reported</span></div>${dataPendingBlock("This coach has not yet submitted a self-assessment.")}</div>`;
+    }
+    const c = selfAssessment.competencies;
+    const rows = [
+      { key: "performance", label: "Performance" },
+      { key: "professionalism", label: "Professionalism" },
+      { key: "programming", label: "Programming" },
+    ].map(({ key, label }) => {
+      const p = c[key];
+      return `<div class="baseline-item"><span class="baseline-lbl">${label}</span><span class="baseline-val">${p ? `${p.score} (${p.item_count}/${p.expected_item_count} items)` : "—"}</span></div>`;
+    }).join("");
+    return `
+      <div class="card card-pad">
+        <div class="section-header">
+          <span class="label-sm">Self-Assessment</span>
+          <span class="badge badge-foundation">Self-reported — not part of Overall Score</span>
+        </div>
+        <div class="baseline-strip">${rows}</div>
+        <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:10px;color:var(--mid-gray)">Submitted ${escapeHtml(selfAssessment.assessment_date || "—")}${selfAssessment.self_identified_development_pillar ? ` — self-identified focus: ${escapeHtml(selfAssessment.self_identified_development_pillar)}` : ""}</div>
+      </div>`;
+  }
+
+  /* ── Development Focus card (Coach profile) — the coach's single
+     highest-priority competency gap, paired with its evidence KPI and
+     recommended skills (js/recommendations.js primaryDevelopmentFocus,
+     sourced from SKILLS_MATRIX). Distinct from the Strengths/
+     Opportunities/Next Steps lists — this is one ranked pick, not a
+     list, matching how a manager would prioritize a single observation
+     focus for the next coaching conversation. ── */
+  function developmentFocusCard(focus) {
+    if (!focus) {
+      return `<div class="card card-pad"><div class="section-header"><span class="label-sm">Development Focus</span></div>${dataPendingBlock("No competency ratings on record yet — development focus will populate once ratings are logged.")}</div>`;
+    }
+    return `
+      <div class="card card-pad">
+        <div class="section-header"><span class="label-sm">Development Focus</span><span class="label-xs">${escapeHtml(focus.primary_development_pillar)}</span></div>
+        <div style="display:flex;align-items:baseline;gap:12px;margin-top:6px">
+          <div class="score-category-num" style="font-size:32px">${focus.competency_score !== null && focus.competency_score !== undefined ? focus.competency_score : "—"}</div>
+          <div>
+            <div style="font-weight:600;font-size:14px;color:var(--off-black)">${escapeHtml(focus.development_competency)}</div>
+            ${focus.development_focus ? `<div class="label-xs" style="text-transform:none;letter-spacing:0">${escapeHtml(focus.development_focus)}${focus.evidence_kpi ? ` · evidence KPI: ${escapeHtml(focus.evidence_kpi)}` : ""}</div>` : ""}
+          </div>
+        </div>
+        ${focus.recommended_skills ? `<div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:10px">Recommended skills: ${escapeHtml(focus.recommended_skills.join(", "))}</div>` : ""}
+        <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:8px;color:var(--mid-gray)">${escapeHtml(focus.next_coaching_action)}</div>
+      </div>`;
+  }
+
   /* ── Club lead totals card — club-level ONLY. Carries an explicit caption
      so it is never mistaken for a per-coach figure (binding rule: lead
      totals must be clearly distinguished from individual coach metrics,
@@ -461,13 +549,14 @@
             <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:4px">${escapeHtml(sub)}</div>
           </div>
         </div>
-        <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:12px;color:var(--mid-gray)">Performance 40% + Programming 30% + Professionalism 30%</div>
+        <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:12px;color:var(--mid-gray)">Performance 50% + Professionalism 30% + Programming 20%</div>
       </div>`;
   }
 
   window.COMPONENTS = {
     icon, escapeHtml, badgeForScore, mappingBadge, overallScoreDisplay, coverageBadge, dataPendingBlock,
     kpiCard, targetBar, competencyBar, competencyCategoryDetail, evidenceRow, curriculumProgressCard, leadTotalsCard,
+    selfAssessmentPillarCard, selfAssessmentSummaryCard, developmentFocusCard,
     clubFilterOptionsHtml, coachCard, groupedCoachOptionsHtml, pillarEntryCard, curriculumSummaryCompact,
     openModal, closeModal, openRankingModal, rankingTableHtml, kpiIndexCard, competencyScoreCard, ICONS,
   };

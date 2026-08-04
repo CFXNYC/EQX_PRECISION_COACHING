@@ -28,6 +28,7 @@
   const D = window.PRECISION_DATA;
   const C = window.CALC;
   const K = window.COMPONENTS;
+  const CH = window.CHARTS;
 
   const state = { market: "ALL", club: "ALL" };
 
@@ -94,9 +95,9 @@
 
   function rowTwoKpis(s) {
     return [
-      { label: "Performance Score", value: s.scoredAgg.performance_score !== null ? s.scoredAgg.performance_score : "—", sub: "40% of overall — Engaging, Closing, Reframing", iconName: "target" },
-      { label: "Programming Score", value: s.scoredAgg.programming_score !== null ? s.scoredAgg.programming_score : "—", sub: "30% of overall — Structure, Coaching, Recommendation", iconName: "activity" },
+      { label: "Performance Score", value: s.scoredAgg.performance_score !== null ? s.scoredAgg.performance_score : "—", sub: "50% of overall — Engaging, Closing, Reframing", iconName: "target" },
       { label: "Professionalism Score", value: s.scoredAgg.professionalism_score !== null ? s.scoredAgg.professionalism_score : "—", sub: "30% of overall — Mindset, Elevator Pitch, Floor Presence", iconName: "flag" },
+      { label: "Programming Score", value: s.scoredAgg.programming_score !== null ? s.scoredAgg.programming_score : "—", sub: "20% of overall — Structure, Coaching, Recommendation", iconName: "activity" },
     ];
   }
 
@@ -160,6 +161,51 @@
       </div>`;
   }
 
+  /* ── Week-Over-Week Trends — reads data/history/weekly_snapshots.json
+     (js/trend-history.js). Plots EVERY capture, not just Monday
+     benchmarks, so an intraweek spike shows up as a visible bump in the
+     line rather than being hidden until the following Monday. Larger
+     dark points mark the Monday benchmark for each week; smaller gray
+     points are intraweek updates — see js/charts.js's pointRadii/
+     pointColors. Needs at least 2 total captures to plot a line; with
+     0-1 it shows a plain placeholder instead of an empty/misleading
+     chart. ── */
+  function trendSection() {
+    const totalCaptures = (window.TREND_HISTORY || []).length;
+    if (totalCaptures < 2) {
+      return `
+        <div class="card card-pad">
+          <div class="section-header"><span class="label-sm">Week-Over-Week Trends</span></div>
+          ${K.dataPendingBlock(`${totalCaptures} of 2+ snapshots captured — trend lines appear once a second snapshot (weekly benchmark or intraweek update) lands.`)}
+        </div>`;
+    }
+    const charts = [
+      { path: "kpi.avg_conversion_rate", label: "Avg Conversion Rate", unit: "%", scale: 100 },
+      { path: "competency.avg_overall_score", label: "Avg Competency Score", unit: "" },
+      { path: "curriculum.avg_progress_pct", label: "Avg Curriculum Progress", unit: "%" },
+      { path: "leads.total_leads", label: "Total Leads", unit: "" },
+    ];
+    const cards = charts.map(({ path, label, unit, scale }) => {
+      const series = window.TRENDS.orgSeries(path);
+      const values = series.values.map((v) => (v === null || v === undefined ? null : scale ? v * scale : v));
+      const hasAny = values.some((v) => v !== null);
+      const pointRadii = series.isBenchmark.map((b) => (b ? 3.6 : 2.2));
+      const pointColors = series.isBenchmark.map((b) => (b ? "#1a1a1a" : "#999"));
+      return `
+        <div class="card card-pad">
+          <div class="section-header"><span class="label-sm">${K.escapeHtml(label)}</span><span class="label-xs">${series.totalCaptures} capture${series.totalCaptures === 1 ? "" : "s"} · ${series.weeksCaptured} week${series.weeksCaptured === 1 ? "" : "s"}</span></div>
+          ${hasAny
+            ? CH.lineChart({ series: [{ label, color: "#1a1a1a", area: true, values: values.map((v) => v || 0), pointRadii, pointColors }], xLabels: series.xLabels, unit })
+            : K.dataPendingBlock("No data captured for this metric yet.")}
+        </div>`;
+    }).join("");
+    return `
+      <div class="section-block">
+        <div class="section-header"><span class="label-sm">Week-Over-Week Trends</span><span class="label-xs">Dark points = Monday benchmark · gray points = intraweek update</span></div>
+        <div class="kpi-grid kpi-grid-3">${cards}</div>
+      </div>`;
+  }
+
   function renderBody() {
     const s = pilotSummary();
     document.getElementById("overview-body").innerHTML = `
@@ -184,6 +230,8 @@
       <div class="section-block">
         ${K.curriculumSummaryCompact(C.curriculumProgressSummary(s.pool))}
       </div>
+
+      ${trendSection()}
 
       <div class="section-block">
         <div class="section-header"><span class="label-sm">Precision Coaching Program</span></div>

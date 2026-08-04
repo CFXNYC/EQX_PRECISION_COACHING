@@ -118,13 +118,15 @@
       </div>
 
       <div class="section-block">
-        ${K.competencyCategoryDetail("Programming · 30%", data.programming_score, labels.programming, detail.programming)}
+        ${K.competencyCategoryDetail("Programming · 20%", data.programming_score, labels.programming, detail.programming)}
       </div>
 
       <div class="section-block">
         <div class="section-header"><span class="label-sm">Programming Evidence</span><span class="label-xs">Not scored — supporting evidence only</span></div>
         ${K.evidenceRow(programmingEvidence)}
-      </div>`;
+      </div>
+
+      ${!data.isAggregate ? `<div class="section-block">${K.selfAssessmentPillarCard("programming", data.coach.self_assessment)}</div>` : ""}`;
 
     const link = document.getElementById("programming-profile-link");
     if (link) {
