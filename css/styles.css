@@ -112,6 +112,24 @@ svg { display: block; }
 .nav-tab:hover { color: rgba(255,255,255,0.8); }
 .nav-tab.active { color: var(--white); border-color: var(--white); }
 
+/* Profile-link button ("View full coach profile →") — same typographic
+   treatment as .nav-tab (bold uppercase DM Mono, white-on-black,
+   underline) so it reads as an unmistakable, clickable action rather
+   than a quiet inline text link. Used on Performance/Professionalism/
+   Programming pages next to the coach selector. */
+.profile-link-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  font-family: 'DM Mono', monospace;
+  color: var(--white);
+  background: var(--off-black);
+  border-bottom: 2px solid var(--white);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.profile-link-btn:hover { opacity: 0.8; }
+
 /* ═══════════════════════════════════════════════════════════
    PAGE STRUCTURE
 ═══════════════════════════════════════════════════════════ */
