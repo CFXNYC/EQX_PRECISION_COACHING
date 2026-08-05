@@ -249,8 +249,11 @@
     const band = (hasScoreData && coach.score_coverage.meets_threshold) ? C.statusBandFor(coach.overall_score) : null;
 
     container.innerHTML = `
-      <div class="section-block">
+      <div class="section-block" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
         <span class="back-btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--dark-gray);font-family:'DM Mono',monospace" onclick="PAGE_COACH.backToPicker()">← All Coaches</span>
+        <div class="select-wrap">
+          <select id="coach-profile-switcher" onchange="PAGE_COACH.select(this.value)">${K.groupedCoachOptionsHtml(D.coaches)}</select>
+        </div>
       </div>
       <div class="section-block" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
         <div>
@@ -275,6 +278,8 @@
             ${renderIntelligence(coach)}
           </div>`}
     `;
+    const switcher = document.getElementById("coach-profile-switcher");
+    if (switcher) switcher.value = coach.coach_id;
   }
 
   const PILLAR_META = {

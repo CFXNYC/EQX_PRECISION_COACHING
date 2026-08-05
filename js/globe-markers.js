@@ -78,7 +78,16 @@
       haloLayer: "clubs-precision-halo",
       haloColor: "#0b0e14",
       haloOpacity: 0.45,
-      haloRadius: [2, 19, 8, 23, 14, 27],
+      // Ramped from near-zero at the whole-globe default view (zoom ~2.1)
+      // up to the original close-zoom values (unchanged from zoom 8
+      // onward — the 8/14 stops below are the exact values this was
+      // tuned to live). Fixes markers reading as oversized blobs at the
+      // default zoomed-out view: the old 2-stop floor (19px at zoom 2)
+      // never shrank further no matter how far out the globe was — a
+      // logo should only become legible once the user has actually
+      // zoomed toward that area, not be visible at a whole-continent
+      // or whole-globe scale.
+      haloRadius: [0, 1, 2, 4, 4, 9, 6, 15, 8, 23, 14, 27],
       symbolLayer: "clubs-precision",
       hoverLayer: "clubs-precision-hover",
       selectedLayer: "clubs-precision-selected",
@@ -94,7 +103,11 @@
       // per-tier as sizePx / that tier's own spriteSize, so an identical
       // sizePx array yields an identical on-screen pixel size regardless
       // of how large each source sprite is).
-      sizePx: [2, 40, 8, 48, 14, 56],
+      // Ramped from near-zero at the default whole-globe view (zoom ~2.1)
+      // up to the original close-zoom values — see haloRadius above for
+      // why (same fix, same rationale). 8/14 stops are unchanged from
+      // the original tuning.
+      sizePx: [0, 3, 2, 8, 4, 18, 6, 30, 8, 44, 14, 56],
     },
     {
       key: "hub",
@@ -113,7 +126,11 @@
       symbolLayer: "clubs-hub",
       hoverLayer: "clubs-hub-hover",
       selectedLayer: "clubs-hub-selected",
-      sizePx: [2, 40, 8, 48, 14, 56], // matches precision — same visual footprint as P at every zoom
+      // Ramped from near-zero at the default whole-globe view (zoom ~2.1)
+      // up to the original close-zoom values — see haloRadius above for
+      // why (same fix, same rationale). 8/14 stops are unchanged from
+      // the original tuning.
+      sizePx: [0, 3, 2, 8, 4, 18, 6, 30, 8, 44, 14, 56], // matches precision — same visual footprint as P at every zoom
     },
     {
       key: "standard",
@@ -126,11 +143,24 @@
       haloLayer: "clubs-standard-halo",
       haloColor: "#0b0e14",
       haloOpacity: 0.28,
-      haloRadius: [2, 19, 8, 23, 14, 27], // matches precision's halo radius — same footprint as P
+      // Ramped from near-zero at the whole-globe default view (zoom ~2.1)
+      // up to the original close-zoom values (unchanged from zoom 8
+      // onward — the 8/14 stops below are the exact values this was
+      // tuned to live). Fixes markers reading as oversized blobs at the
+      // default zoomed-out view: the old 2-stop floor (19px at zoom 2)
+      // never shrank further no matter how far out the globe was — a
+      // logo should only become legible once the user has actually
+      // zoomed toward that area, not be visible at a whole-continent
+      // or whole-globe scale.
+      haloRadius: [0, 1, 2, 4, 4, 9, 6, 15, 8, 23, 14, 27], // matches precision's halo radius — same footprint as P
       symbolLayer: "clubs-standard",
       hoverLayer: "clubs-standard-hover",
       selectedLayer: "clubs-standard-selected",
-      sizePx: [2, 40, 8, 48, 14, 56], // matches precision — same visual footprint as P at every zoom
+      // Ramped from near-zero at the default whole-globe view (zoom ~2.1)
+      // up to the original close-zoom values — see haloRadius above for
+      // why (same fix, same rationale). 8/14 stops are unchanged from
+      // the original tuning.
+      sizePx: [0, 3, 2, 8, 4, 18, 6, 30, 8, 44, 14, 56], // matches precision — same visual footprint as P at every zoom
     },
   ];
 
@@ -146,6 +176,17 @@
     for (let i = 0; i < tier.sizePx.length; i += 2) {
       expr.push(tier.sizePx[i], (tier.sizePx[i + 1] / tier.spriteSize) * s);
     }
+    return expr;
+  }
+
+  // Generic zoom-interpolation builder for a flat [zoom, value, zoom,
+  // value, ...] stops array — any number of stops, not just a fixed
+  // count. Used for halo circle-radius (tierSizeExpr above is the
+  // icon-size equivalent, kept separate since it also divides by
+  // spriteSize).
+  function radiusExpr(stops) {
+    const expr = ["interpolate", ["linear"], ["zoom"]];
+    for (let i = 0; i < stops.length; i += 2) expr.push(stops[i], stops[i + 1]);
     return expr;
   }
 
@@ -290,7 +331,7 @@
           paint: {
             "circle-color": tier.haloColor,
             "circle-opacity": tier.haloOpacity,
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], tier.haloRadius[0], tier.haloRadius[1], tier.haloRadius[2], tier.haloRadius[3], tier.haloRadius[4], tier.haloRadius[5]],
+            "circle-radius": radiusExpr(tier.haloRadius),
           },
         });
       }
