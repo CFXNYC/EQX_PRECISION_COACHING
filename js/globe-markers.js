@@ -498,8 +498,22 @@
 
   function init(map, geojson) {
     _map = map;
+    // `geojson` is a snapshot captured by the caller (activateGlobeMode())
+    // at init() call time. mount() itself only runs after style.load AND
+    // addClubIcons() resolve — both async — so if the club data (data/
+    // club_map_data.json) finishes loading during that gap, the snapshot
+    // above goes stale AND the onUpdate listener below isn't registered
+    // yet to catch that update's notification, silently dropping it
+    // forever (confirmed live: the map source got stuck at its initial
+    // ~1-feature bootstrap state while window.GLOBE_DATA already had all
+    // 119). Fix: re-read GLOBE_DATA.toGeoJSON() fresh right here, at the
+    // moment mount() actually executes, instead of trusting the
+    // possibly-stale argument — closes the race regardless of which
+    // async operation (style load, icon load, or the data fetch) finishes
+    // last.
     const mount = () => {
-      addSourceAndLayers(map, geojson);
+      const freshGeojson = root.GLOBE_DATA ? root.GLOBE_DATA.toGeoJSON() : geojson;
+      addSourceAndLayers(map, freshGeojson);
       wireHoverAndSelection(map);
       wireClusterClicks(map);
       wireMarkerClicks(map);
