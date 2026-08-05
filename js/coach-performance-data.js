@@ -43,6 +43,7 @@
   "use strict";
 
   const COMPETENCIES_URL = "./data/danny_competencies_3ps.json";
+  const OBSERVER_ASSESSMENT_URL = "./data/coach_competency_scores.json";
   const KPI_TRACKING_URL = "./data/danny_kpi_tracking.json";
   const CURRICULUM_URL = "./data/coach_curriculum_completion.json";
   const LEAD_TOTALS_URL = "./data/lead_tracker_summary.json";
@@ -95,7 +96,7 @@
   function logEvidenceDataQuality(report) {
     /* eslint-disable no-console */
     console.groupCollapsed("%cPrecision Coaching — Evidence Sources Data Quality (internal diagnostics, not shown in UI)", "font-weight:bold");
-    ["competencies", "kpi_tracking", "curriculum", "lead_totals", "club_market"].forEach((key) => {
+    ["competencies", "observer_assessment", "kpi_tracking", "curriculum", "lead_totals", "club_market"].forEach((key) => {
       const s = report[key];
       if (!s) return;
       console.log(`${key}:`, s);
@@ -135,8 +136,9 @@
       coachesByNormalizedName.set(c.normalized_name, arr);
     });
 
-    const [competenciesResult, kpiResult, curriculumResult, leadResult] = await Promise.allSettled([
+    const [competenciesResult, observerAssessmentResult, kpiResult, curriculumResult, leadResult] = await Promise.allSettled([
       fetchJson(COMPETENCIES_URL, "danny_competencies_3ps.json"),
+      fetchJson(OBSERVER_ASSESSMENT_URL, "coach_competency_scores.json"),
       fetchJson(KPI_TRACKING_URL, "danny_kpi_tracking.json"),
       fetchJson(CURRICULUM_URL, "coach_curriculum_completion.json"),
       fetchJson(LEAD_TOTALS_URL, "lead_tracker_summary.json"),
@@ -162,6 +164,71 @@
       report.competencies = { loaded: competenciesResult.value.length, matched, unmatched: unmatchedEmails.length, unmatchedEmails, clubMismatches };
     } else {
       report.competencies = { failed: true, error: competenciesResult.reason && competenciesResult.reason.message };
+    }
+
+    /* ── Observer-scored in-person workshop assessment ─────────
+       (coach_competency_scores.json, from the SOURCE OF TRUTH
+       workbook's COACH_ASSESSMENT_LOG tab). Real per-coach 1-5
+       ratings — overwrites the (currently all-null) danny_competencies_3ps.json
+       placeholder above for any coach with a real assessment on record.
+       No email field in this source; joined by normalized coach_name
+       (same ambiguity-safe pattern as the curriculum join below — an
+       ambiguous name match is excluded, never merged), with club_number
+       cross-checked for a diagnostic-only mismatch flag. Transformed
+       into the flat "PERFORMANCE | Engaging" style keys COMPETENCY_CONFIG
+       (calculations.js) already expects — the app's binding 50/30/20
+       Overall Score formula is computed from these raw ratings by the
+       existing engine, never from this source's own precomputed
+       overall_competency_score (that field uses the workbook's internal
+       equal-weighted average, a different — and not binding — formula). */
+    if (observerAssessmentResult.status === "fulfilled") {
+      let matched = 0, excludedAmbiguous = 0;
+      const unmatched = [];
+      const clubMismatches = [];
+      const normalizeFn = window.PRECISION_NORMALIZE_COACH_NAME || ((s) => String(s || "").toLowerCase().trim());
+      observerAssessmentResult.value.forEach((row) => {
+        const key = normalizeFn(row.coach_name || "");
+        const candidates = coachesByNormalizedName.get(key) || [];
+        let coach = null;
+        if (candidates.length === 1) {
+          coach = candidates[0];
+        } else if (candidates.length > 1) {
+          excludedAmbiguous++;
+          console.warn(
+            "coach-performance-data.js: ambiguous observer-assessment name match excluded (not merged).",
+            { assessment_id: row.assessment_id, name: row.coach_name, candidateCoachIds: candidates.map((c) => c.coach_id) }
+          );
+          return;
+        } else {
+          unmatched.push({ assessment_id: row.assessment_id, name: row.coach_name, club: row.club });
+          return;
+        }
+        if (row.club && coach.club_number && String(row.club) !== String(coach.club_number)) {
+          clubMismatches.push({ name: row.coach_name, source_club: row.club, directory_club_number: coach.club_number });
+        }
+        const perf = (row.competencies && row.competencies.performance) || {};
+        const prof = (row.competencies && row.competencies.professionalism) || {};
+        const prog = (row.competencies && row.competencies.programming) || {};
+        coach.evidence_sources.competencies = {
+          "PERFORMANCE | Engaging": perf.engaging,
+          "PERFORMANCE | Closing": perf.closing,
+          "PERFORMANCE | Reframing": perf.reframing,
+          "PROFESSIONALISM | Mindset": prof.mindset,
+          "PROFESSIONALISM | Elevator Pitch": prof.elevator_pitch,
+          "PROFESSIONALISM | Floor Presence": prof.floor_presence,
+          "PROGRAMMING | Structure": prog.structure,
+          "PROGRAMMING | Coaching": prog.coaching,
+          "PROGRAMMING | Recommendation": prog.recommendation,
+          assessment_id: row.assessment_id,
+          assessment_date: row.assessment_date,
+          assessment_status: row.assessment_status,
+          source: "coach_competency_scores.json",
+        };
+        matched++;
+      });
+      report.observer_assessment = { loaded: observerAssessmentResult.value.length, matched, excludedAmbiguous, unmatched: unmatched.length, unmatchedDetail: unmatched, clubMismatches };
+    } else {
+      report.observer_assessment = { failed: true, error: observerAssessmentResult.reason && observerAssessmentResult.reason.message };
     }
 
     /* ── KPI tracking (email-exact only) ───────────────────── */

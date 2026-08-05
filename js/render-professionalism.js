@@ -152,14 +152,14 @@
       </div>
 
       <div class="section-block">
-        ${K.competencyCategoryDetail("Professionalism · 30%", data.professionalism_score, labels.professionalism, detail.professionalism)}
+        ${K.competencyCategoryDetail("Professionalism · 30%", data.professionalism_score, labels.professionalism, detail.professionalism, "PAGE_PROFESSIONALISM.openPillarScoreModal()")}
       </div>
 
       ${!data.isAggregate ? `<div class="section-block">${K.selfAssessmentPillarCard("professionalism", data.coach.self_assessment)}</div>` : ""}`;
 
     const link = document.getElementById("professionalism-profile-link");
     if (link) {
-      link.innerHTML = state.coachId === "ALL" ? "" : `<span class="view-link" onclick="App.showCoach('${state.coachId}')" style="cursor:pointer;color:var(--dark-gray);font-family:'DM Mono',monospace;font-size:11px">View full coach profile →</span>`;
+      link.innerHTML = state.coachId === "ALL" ? "" : `<span class="profile-link-btn" onclick="App.showCoach('${state.coachId}')" role="button" tabindex="0">View Full Coach Profile →</span>`;
     }
   }
 
@@ -199,6 +199,29 @@
     });
   }
 
+  /* Pillar Score deep-dive — same modal used on Overview, scoped to the
+     current club filter's coach pool (never just the one selected coach —
+     a ranking of one is not a ranking). */
+  function openPillarScoreModal() {
+    const pool = poolForClubFilter();
+    const scoreable = C.scoreableCoaches().filter(c => pool.indexOf(c) !== -1);
+    const avgCompetencies = C.orgAggregateCompetencies(scoreable);
+    const scoredAgg = C.scoreAggregateCompetencies(avgCompetencies);
+    const ranking = C.pillarScoreRanking(pool, "professionalism");
+    const trendSeries = window.TRENDS ? window.TRENDS.orgSeries("competency.avg_professionalism_score") : null;
+    K.pillarScoreModal({
+      title: "Professionalism Score",
+      subtitle: filterContextLabel(),
+      weightLabel: "Professionalism · 30%",
+      pillarScore: scoredAgg.professionalism_score,
+      pillarCoverageLabel: (scoredAgg.pillar_coverage_labels || {}).professionalism,
+      pillarDetail: (scoredAgg.score_detail || {}).professionalism,
+      ranking,
+      trendSeries,
+      trendLabel: "Professionalism Score",
+    });
+  }
+
   function onCoachChange(val) { state.coachId = val; renderBody(); }
   function onClubFilterChange(val) { state.clubFilter = val; state.coachId = "ALL"; render(); }
 
@@ -230,6 +253,6 @@
 
   window.PAGE_PROFESSIONALISM = {
     render, onCoachChange, onClubFilterChange,
-    openEqfsCompletedModal, openEqfsBookedModal,
+    openEqfsCompletedModal, openEqfsBookedModal, openPillarScoreModal,
   };
 })();

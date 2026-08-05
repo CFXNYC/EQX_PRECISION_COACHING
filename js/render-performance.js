@@ -237,7 +237,7 @@
       </div>
 
       <div class="section-block">
-        ${K.competencyCategoryDetail("Performance · 50%", data.performance_score, labels.performance, detail.performance)}
+        ${K.competencyCategoryDetail("Performance · 50%", data.performance_score, labels.performance, detail.performance, "PAGE_PERFORMANCE.openPillarScoreModal()")}
       </div>
       ${trendHtml}
 
@@ -247,7 +247,7 @@
 
     const link = document.getElementById("performance-profile-link");
     if (link) {
-      link.innerHTML = state.coachId === "ALL" ? "" : `<span class="view-link" onclick="App.showCoach('${state.coachId}')" style="cursor:pointer;color:var(--dark-gray);font-family:'DM Mono',monospace;font-size:11px">View full coach profile →</span>`;
+      link.innerHTML = state.coachId === "ALL" ? "" : `<span class="profile-link-btn" onclick="App.showCoach('${state.coachId}')" role="button" tabindex="0">View Full Coach Profile →</span>`;
     }
   }
 
@@ -305,6 +305,29 @@
     });
   }
 
+  /* Pillar Score deep-dive — same modal used on Overview, scoped to the
+     current club filter's coach pool (never just the one selected coach —
+     a ranking of one is not a ranking). */
+  function openPillarScoreModal() {
+    const pool = poolForClubFilter();
+    const scoreable = C.scoreableCoaches().filter(c => pool.indexOf(c) !== -1);
+    const avgCompetencies = C.orgAggregateCompetencies(scoreable);
+    const scoredAgg = C.scoreAggregateCompetencies(avgCompetencies);
+    const ranking = C.pillarScoreRanking(pool, "performance");
+    const trendSeries = window.TRENDS ? window.TRENDS.orgSeries("competency.avg_performance_score") : null;
+    K.pillarScoreModal({
+      title: "Performance Score",
+      subtitle: filterContextLabel(),
+      weightLabel: "Performance · 50%",
+      pillarScore: scoredAgg.performance_score,
+      pillarCoverageLabel: (scoredAgg.pillar_coverage_labels || {}).performance,
+      pillarDetail: (scoredAgg.score_detail || {}).performance,
+      ranking,
+      trendSeries,
+      trendLabel: "Performance Score",
+    });
+  }
+
   function onCoachChange(val) { state.coachId = val; renderCurriculum(); renderBody(); renderLeadTotals(); }
   function onClubFilterChange(val) { state.clubFilter = val; state.coachId = "ALL"; render(); }
 
@@ -349,6 +372,6 @@
 
   window.PAGE_PERFORMANCE = {
     render, onCoachChange, onClubFilterChange,
-    openConversionModal, openActiveClientsModal, openCpptModal,
+    openConversionModal, openActiveClientsModal, openCpptModal, openPillarScoreModal,
   };
 })();

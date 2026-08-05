@@ -49,6 +49,12 @@
     return `All Coaches — ${club ? club.club_name : state.clubFilter}`;
   }
 
+  function filterContextLabel() {
+    if (state.clubFilter === "ALL") return "All Pilot Clubs";
+    const club = D.clubs.find(c => c.club_number === state.clubFilter);
+    return club ? club.club_name : state.clubFilter;
+  }
+
   function coachOptionsHtml() {
     return `<option value="ALL">${K.escapeHtml(aggregateLabel())}</option>${K.groupedCoachOptionsHtml(poolForClubFilter())}`;
   }
@@ -118,7 +124,7 @@
       </div>
 
       <div class="section-block">
-        ${K.competencyCategoryDetail("Programming · 20%", data.programming_score, labels.programming, detail.programming)}
+        ${K.competencyCategoryDetail("Programming · 20%", data.programming_score, labels.programming, detail.programming, "PAGE_PROGRAMMING.openPillarScoreModal()")}
       </div>
 
       <div class="section-block">
@@ -130,8 +136,31 @@
 
     const link = document.getElementById("programming-profile-link");
     if (link) {
-      link.innerHTML = state.coachId === "ALL" ? "" : `<span class="view-link" onclick="App.showCoach('${state.coachId}')" style="cursor:pointer;color:var(--dark-gray);font-family:'DM Mono',monospace;font-size:11px">View full coach profile →</span>`;
+      link.innerHTML = state.coachId === "ALL" ? "" : `<span class="profile-link-btn" onclick="App.showCoach('${state.coachId}')" role="button" tabindex="0">View Full Coach Profile →</span>`;
     }
+  }
+
+  /* Pillar Score deep-dive — same modal used on Overview, scoped to the
+     current club filter's coach pool (never just the one selected coach —
+     a ranking of one is not a ranking). */
+  function openPillarScoreModal() {
+    const pool = poolForClubFilter();
+    const scoreable = C.scoreableCoaches().filter(c => pool.indexOf(c) !== -1);
+    const avgCompetencies = C.orgAggregateCompetencies(scoreable);
+    const scoredAgg = C.scoreAggregateCompetencies(avgCompetencies);
+    const ranking = C.pillarScoreRanking(pool, "programming");
+    const trendSeries = window.TRENDS ? window.TRENDS.orgSeries("competency.avg_programming_score") : null;
+    K.pillarScoreModal({
+      title: "Programming Score",
+      subtitle: filterContextLabel(),
+      weightLabel: "Programming · 20%",
+      pillarScore: scoredAgg.programming_score,
+      pillarCoverageLabel: (scoredAgg.pillar_coverage_labels || {}).programming,
+      pillarDetail: (scoredAgg.score_detail || {}).programming,
+      ranking,
+      trendSeries,
+      trendLabel: "Programming Score",
+    });
   }
 
   function onCoachChange(val) { state.coachId = val; renderBody(); }
@@ -163,5 +192,5 @@
     renderBody();
   }
 
-  window.PAGE_PROGRAMMING = { render, onCoachChange, onClubFilterChange };
+  window.PAGE_PROGRAMMING = { render, onCoachChange, onClubFilterChange, openPillarScoreModal };
 })();

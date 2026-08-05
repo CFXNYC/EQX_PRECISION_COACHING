@@ -95,11 +95,17 @@
 
   function rowTwoKpis(s) {
     return [
-      { label: "Performance Score", value: s.scoredAgg.performance_score !== null ? s.scoredAgg.performance_score : "—", sub: "50% of overall — Engaging, Closing, Reframing", iconName: "target" },
-      { label: "Professionalism Score", value: s.scoredAgg.professionalism_score !== null ? s.scoredAgg.professionalism_score : "—", sub: "30% of overall — Mindset, Elevator Pitch, Floor Presence", iconName: "flag" },
-      { label: "Programming Score", value: s.scoredAgg.programming_score !== null ? s.scoredAgg.programming_score : "—", sub: "20% of overall — Structure, Coaching, Recommendation", iconName: "activity" },
+      { label: "Performance Score", value: s.scoredAgg.performance_score !== null ? s.scoredAgg.performance_score : "—", sub: "50% of overall — Engaging, Closing, Reframing", iconName: "target", onClick: "PAGE_OVERVIEW.openPillarScoreModal('performance')" },
+      { label: "Professionalism Score", value: s.scoredAgg.professionalism_score !== null ? s.scoredAgg.professionalism_score : "—", sub: "30% of overall — Mindset, Elevator Pitch, Floor Presence", iconName: "flag", onClick: "PAGE_OVERVIEW.openPillarScoreModal('professionalism')" },
+      { label: "Programming Score", value: s.scoredAgg.programming_score !== null ? s.scoredAgg.programming_score : "—", sub: "20% of overall — Structure, Coaching, Recommendation", iconName: "activity", onClick: "PAGE_OVERVIEW.openPillarScoreModal('programming')" },
     ];
   }
+
+  const PILLAR_META = {
+    performance: { label: "Performance Score", weightLabel: "Performance · 50%", trendPath: "competency.avg_performance_score" },
+    professionalism: { label: "Professionalism Score", weightLabel: "Professionalism · 30%", trendPath: "competency.avg_professionalism_score" },
+    programming: { label: "Programming Score", weightLabel: "Programming · 20%", trendPath: "competency.avg_programming_score" },
+  };
 
   /* Performance KPI set — real per-coach averages only (see calculations.js
      header for why these are means-of-rates, not totals-over-totals).
@@ -295,6 +301,28 @@
     });
   }
 
+  /* Pillar Score deep-dive — Performance/Professionalism/Programming
+     Score cards above. Breakdown + ranking scoped to the current
+     Market/Club filter pool; trend is portfolio-wide (weekly snapshots
+     don't carry a per-market/club breakdown). */
+  function openPillarScoreModal(pillarKey) {
+    const meta = PILLAR_META[pillarKey];
+    const s = pilotSummary();
+    const ranking = C.pillarScoreRanking(s.pool, pillarKey);
+    const trendSeries = window.TRENDS ? window.TRENDS.orgSeries(meta.trendPath) : null;
+    K.pillarScoreModal({
+      title: meta.label,
+      subtitle: filterContextLabel(),
+      weightLabel: meta.weightLabel,
+      pillarScore: s.scoredAgg[`${pillarKey}_score`],
+      pillarCoverageLabel: (s.scoredAgg.pillar_coverage_labels || {})[pillarKey],
+      pillarDetail: (s.scoredAgg.score_detail || {})[pillarKey],
+      ranking,
+      trendSeries,
+      trendLabel: meta.label,
+    });
+  }
+
   function onMarketChange(v) { state.market = v; state.club = "ALL"; renderFilters(); renderBody(); }
   function onClubChange(v) { state.club = v; renderBody(); }
 
@@ -325,6 +353,6 @@
 
   window.PAGE_OVERVIEW = {
     render, onMarketChange, onClubChange,
-    openConversionModal, openActiveClientsModal, openRecurringModal,
+    openConversionModal, openActiveClientsModal, openRecurringModal, openPillarScoreModal,
   };
 })();

@@ -165,16 +165,18 @@
      replacing the old KPI-target scoreCategoryDetail for scored content.
      coverageLabel is the count-based "X of 3 competency inputs available"
      string computed once in calculations.js — never re-derived here. ── */
-  function competencyCategoryDetail(categoryLabel, categoryScore, coverageLabel, detail) {
+  function competencyCategoryDetail(categoryLabel, categoryScore, coverageLabel, detail, onClick) {
     const rows = Object.values(detail || {}).map((m) => competencyBar({ label: m.label, raw: m.raw, normalized: m.normalized, available: m.available })).join("");
+    const clickAttrs = onClick ? ` onclick="${escapeHtml(onClick)}" style="cursor:pointer" role="button" tabindex="0"` : "";
     return `
-      <div class="score-category-card">
+      <div class="score-category-card"${clickAttrs}>
         <div class="score-category-head">
           <span class="label-sm">${escapeHtml(categoryLabel)}</span>
           <span class="score-category-num">${categoryScore !== null && categoryScore !== undefined ? Math.round(categoryScore) : "—"}</span>
         </div>
         <div class="label-xs" style="text-transform:none;letter-spacing:0;margin:2px 0 6px">${escapeHtml(coverageLabel || "")}</div>
         <div class="score-category-metrics">${rows}</div>
+        ${onClick ? `<div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:8px;color:var(--mid-gray)">View deeper dive →</div>` : ""}
       </div>`;
   }
 
@@ -313,6 +315,49 @@
           <div class="baseline-item"><span class="baseline-lbl">Total Leads</span><span class="baseline-val">${leadTotals.total_leads}</span></div>
         </div>
         <div class="label-xs" style="text-transform:none;letter-spacing:0;margin-top:10px;color:var(--mid-gray)">Club-level total — not attributable to individual coach performance.</div>
+      </div>`;
+  }
+
+  /* ── Business Performance card (Coach profile) — full 17-field KPI
+     breakdown sourced directly from coach.raw_performance (the source
+     record from pilot_coach_data.json, joined 1:1 by directory name in
+     js/data.js). Deliberately reads raw_performance rather than the
+     derived calculated_metrics so every number shown here is the
+     unmodified source value — no recomputation, no rounding drift.
+     Never scored, informational only. Refreshes automatically whenever
+     pilot_coach_data.json is updated (data.js re-fetches on load). ── */
+  function businessPerformanceCard(rawPerformance) {
+    if (!rawPerformance) {
+      return `<div class="card card-pad"><div class="section-header"><span class="label-sm">Business Performance</span></div>${dataPendingBlock("No KPI evidence on record for this coach yet.")}</div>`;
+    }
+    const r = rawPerformance;
+    const pct = (v) => (v === null || v === undefined) ? "—" : `${Math.round(v * 1000) / 10}%`;
+    const num = (v) => (v === null || v === undefined) ? "—" : v;
+    const FIELDS = [
+      ["eqfs_scheduled", "Equifits Scheduled", num],
+      ["eqfs_completed", "Equifits Completed", num],
+      ["comppt_scheduled", "CPTs Scheduled", num],
+      ["comppt_completed", "CPTs Completed", num],
+      ["active_clients", "Active Clients", num],
+      ["conversion_eqfs", "Conversion Equifits", num],
+      ["ftbs_generated", "FTBs Generated", num],
+      ["conversion_rate", "Conversion Rate", pct],
+      ["lost_clients", "Lost Clients", num],
+      ["total_sessions", "Total Sessions", num],
+      ["active_weeks", "Active Weeks", num],
+      ["avg_weekly_sessions", "Avg Weekly Sessions", num],
+      ["recurring_clients", "Recurring Clients", num],
+      ["pct_recurring_clients", "% Recurring Clients", pct],
+      ["ftb_clients", "FTB Clients", num],
+      ["repurchased_clients", "Repurchased Clients", num],
+      ["repurchase_rate", "Repurchase Rate", pct],
+    ];
+    const rows = FIELDS.map(([key, label, fmt]) => `
+      <div class="baseline-item"><span class="baseline-lbl">${escapeHtml(label)}</span><span class="baseline-val">${escapeHtml(String(fmt(r[key])))}</span></div>`).join("");
+    return `
+      <div class="card card-pad">
+        <div class="section-header"><span class="label-sm">Business Performance</span><span class="label-xs">Not scored — supporting evidence only</span></div>
+        <div class="baseline-strip">${rows}</div>
       </div>`;
   }
 
@@ -506,6 +551,31 @@
     openModal({ title, subtitle, bodyHtml: `${avgHtml}${tableHtml}` });
   }
 
+  /* Pillar Score deep-dive modal — opened by clicking a Performance /
+     Professionalism / Programming score card (Overview and each pillar
+     page). Three parts, in order: the competency-level breakdown for
+     the current filtered pool (same bar style as the coach profile and
+     pillar pages — never a new visual language), a week-over-week trend
+     of the portfolio-average pillar score (window.TRENDS.orgSeries,
+     same "needs 2+ captures" gate as Overview's Week-Over-Week Trends
+     section — never a misleading single-point line), then the full
+     per-coach ranking. trendSeries is optional — pass null/undefined
+     if the caller has no trend path for this metric. */
+  function pillarScoreModal({ title, subtitle, weightLabel, pillarScore, pillarCoverageLabel, pillarDetail, ranking, trendSeries, trendLabel }) {
+    const breakdownHtml = `<div class="section-block">${competencyCategoryDetail(weightLabel, pillarScore, pillarCoverageLabel, pillarDetail)}</div>`;
+    let trendHtml = "";
+    if (trendSeries) {
+      trendHtml = trendSeries.totalCaptures >= 2
+        ? `<div class="section-block"><div class="card card-pad"><div class="section-header"><span class="label-sm">${escapeHtml(trendLabel || "Trend")}</span><span class="label-xs">${trendSeries.weeksCaptured} week${trendSeries.weeksCaptured === 1 ? "" : "s"} on record</span></div>${window.CHARTS.lineChart({ series: [{ label: trendLabel || "Score", color: "#1a1a1a", area: true, values: trendSeries.values.map(v => v || 0) }], xLabels: trendSeries.xLabels, unit: "" })}</div></div>`
+        : `<div class="section-block">${dataPendingBlock(`${trendSeries.totalCaptures} of 2+ snapshots captured — trend line appears once a second weekly snapshot lands.`)}</div>`;
+    }
+    const avgHtml = `<div class="modal-average"><span class="label-xs">Portfolio Average</span><span class="modal-average-val">${ranking.average !== null && ranking.average !== undefined ? Math.round(ranking.average * 10) / 10 : "—"}</span></div>`;
+    const tableHtml = (ranking.rows && ranking.rows.length)
+      ? rankingTableHtml({ columns: [{ key: "display_name", label: "Coach" }, { key: "club_name", label: "Club" }, { key: "score", label: "Score" }, { key: "band", label: "Status Band" }], rows: ranking.rows })
+      : dataPendingBlock("No coaches have a rated score for this pillar in the current filter.");
+    openModal({ title, subtitle, bodyHtml: `${breakdownHtml}${trendHtml}${avgHtml}${tableHtml}` });
+  }
+
   /* ── KPI Performance Index card (Overview, primary Overall Performance
      Score) — entirely separate from the competency score below it. ── */
   function kpiIndexCard(kpiIndex) {
@@ -556,8 +626,8 @@
   window.COMPONENTS = {
     icon, escapeHtml, badgeForScore, mappingBadge, overallScoreDisplay, coverageBadge, dataPendingBlock,
     kpiCard, targetBar, competencyBar, competencyCategoryDetail, evidenceRow, curriculumProgressCard, leadTotalsCard,
-    selfAssessmentPillarCard, selfAssessmentSummaryCard, developmentFocusCard,
+    selfAssessmentPillarCard, selfAssessmentSummaryCard, developmentFocusCard, businessPerformanceCard,
     clubFilterOptionsHtml, coachCard, groupedCoachOptionsHtml, pillarEntryCard, curriculumSummaryCompact,
-    openModal, closeModal, openRankingModal, rankingTableHtml, kpiIndexCard, competencyScoreCard, ICONS,
+    openModal, closeModal, openRankingModal, rankingTableHtml, pillarScoreModal, kpiIndexCard, competencyScoreCard, ICONS,
   };
 })();

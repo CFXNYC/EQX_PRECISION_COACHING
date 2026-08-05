@@ -220,7 +220,7 @@
       const available = raw !== null && raw !== undefined;
       const normalized = available ? Math.max(0, Math.min(100, (raw / 5) * 100)) : null;
       if (available) { availableWeight += perWeight; weightedSum += perWeight * normalized; availableCount++; }
-      detail[key] = { label: def.label, raw: available ? raw : null, normalized: round1(normalized), available };
+      detail[key] = { label: def.label, raw: available ? round1(raw) : null, normalized: round1(normalized), available };
     });
     const coverage = availableWeight;
     const score = coverage > 0 ? weightedSum / coverage : null;
@@ -676,6 +676,26 @@
     return { total, availableCount: rows.length, matchedCount: matched.length, rows };
   }
 
+  /* Pillar Score ranking — every coach in the pool with an available
+     score for this specific pillar (Performance / Professionalism /
+     Programming), regardless of whether their OVERALL score meets the
+     60% coverage threshold (a coach can have full coverage on one
+     pillar and none on the others — this ranks what's actually rated,
+     same as the pillar detail card already shown ungated on Performance/
+     Professionalism/Programming pages). Powers each pillar-score card's
+     "deeper dive" modal. */
+  function pillarScoreRanking(coaches, pillarKey) {
+    const rows = coaches
+      .filter(c => c[`${pillarKey}_score`] !== null && c[`${pillarKey}_score`] !== undefined)
+      .map(c => ({
+        coach_id: c.coach_id, display_name: c.display_name, club_name: coachClubName(c),
+        score: c[`${pillarKey}_score`], band: statusBandFor(c[`${pillarKey}_score`]).label,
+      }))
+      .sort((a, b) => b.score - a.score);
+    const average = rows.length ? rows.reduce((s, r) => s + r.score, 0) / rows.length : null;
+    return { average, eligibleCount: rows.length, rows };
+  }
+
   /* ═══════════════════════════════════════════════════════════
      KPI PERFORMANCE INDEX
      ---------------------------------------------------------
@@ -752,6 +772,7 @@
     curriculumProgress, kpiPeriods, curriculumProgressSummary, orgConversionTrend,
     avgCoachConversionRate, avgActiveClientsPerCoach, avgRecurringClientRate,
     avgEqfsCompletedPerCoach, avgComppCompletedPerCoach, eqfsBookedSummary,
+    pillarScoreRanking,
     kpiPerformanceIndex, coachClubName,
   };
 })();

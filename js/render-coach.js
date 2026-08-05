@@ -138,11 +138,19 @@
           </div>
         </div>
         <div class="grid-3">
-          ${K.competencyCategoryDetail("Performance · 50%", coach.performance_score, labels.performance, detail.performance)}
-          ${K.competencyCategoryDetail("Professionalism · 30%", coach.professionalism_score, labels.professionalism, detail.professionalism)}
-          ${K.competencyCategoryDetail("Programming · 20%", coach.programming_score, labels.programming, detail.programming)}
+          ${K.competencyCategoryDetail("Performance · 50%", coach.performance_score, labels.performance, detail.performance, "PAGE_COACH.openPillarScoreModal('performance')")}
+          ${K.competencyCategoryDetail("Professionalism · 30%", coach.professionalism_score, labels.professionalism, detail.professionalism, "PAGE_COACH.openPillarScoreModal('professionalism')")}
+          ${K.competencyCategoryDetail("Programming · 20%", coach.programming_score, labels.programming, detail.programming, "PAGE_COACH.openPillarScoreModal('programming')")}
         </div>
       </div>`;
+  }
+
+  /* Lead totals shown on the coach profile are club-level only (the
+     source file, lead_tracker_summary.json, has no per-coach split) —
+     this looks up the coach's own club and displays that club's totals
+     next to them, never fabricating an individual attribution. */
+  function coachClub(coach) {
+    return D.clubs.find(c => c.club_number === coach.club_number) || null;
   }
 
   function renderKpiBreakdown(coach) {
@@ -179,6 +187,8 @@
           ${K.evidenceRow(C.pillarEvidence(coach, "professionalism"))}
         </div>
       </div>
+      <div class="section-block">${K.businessPerformanceCard(coach.raw_performance)}</div>
+      <div class="section-block">${K.leadTotalsCard(coachClub(coach) ? coachClub(coach).lead_totals : null)}</div>
       <div class="section-block">${K.curriculumProgressCard(curriculum)}</div>
       <div class="section-block">${K.selfAssessmentSummaryCard(coach.self_assessment)}</div>
       ${periodsHtml}
@@ -267,6 +277,35 @@
     `;
   }
 
+  const PILLAR_META = {
+    performance: { title: "Performance Score", weightLabel: "Performance · 50%", trendPath: "competency.avg_performance_score" },
+    professionalism: { title: "Professionalism Score", weightLabel: "Professionalism · 30%", trendPath: "competency.avg_professionalism_score" },
+    programming: { title: "Programming Score", weightLabel: "Programming · 20%", trendPath: "competency.avg_programming_score" },
+  };
+
+  /* Pillar Score deep-dive from an individual coach's profile — ranking
+     is portfolio-wide (every approved pilot coach), never just this one
+     coach, so the manager can see where they stand. */
+  function openPillarScoreModal(pillarKey) {
+    const meta = PILLAR_META[pillarKey];
+    const scoreable = C.scoreableCoaches();
+    const avgCompetencies = C.orgAggregateCompetencies(scoreable);
+    const scoredAgg = C.scoreAggregateCompetencies(avgCompetencies);
+    const ranking = C.pillarScoreRanking(D.coaches, pillarKey);
+    const trendSeries = window.TRENDS ? window.TRENDS.orgSeries(meta.trendPath) : null;
+    K.pillarScoreModal({
+      title: meta.title,
+      subtitle: "All Pilot Coaches",
+      weightLabel: meta.weightLabel,
+      pillarScore: scoredAgg[`${pillarKey}_score`],
+      pillarCoverageLabel: (scoredAgg.pillar_coverage_labels || {})[pillarKey],
+      pillarDetail: (scoredAgg.score_detail || {})[pillarKey],
+      ranking,
+      trendSeries,
+      trendLabel: meta.title,
+    });
+  }
+
   /* ═══════════════════════════════ ENTRY ═══════════════════════════════ */
   function select(coachId) { state.mode = "profile"; state.selectedId = coachId; render(); }
   function backToPicker() { state.mode = "picker"; state.selectedId = null; render(); }
@@ -286,5 +325,5 @@
     else renderPicker(container);
   }
 
-  window.PAGE_COACH = { render, select, backToPicker, onSearch, onClubFilterChange, onStatusFilterChange, onBandFilterChange };
+  window.PAGE_COACH = { render, select, backToPicker, onSearch, onClubFilterChange, onStatusFilterChange, onBandFilterChange, openPillarScoreModal };
 })();
